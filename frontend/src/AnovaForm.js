@@ -91,7 +91,7 @@ function AnovaForm({
       n_given: Number(nGiven)
     };
     try {
-      const res = await fetch((process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api/simplesize', {
+      const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
