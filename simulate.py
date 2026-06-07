@@ -274,36 +274,79 @@ def ttest_paired_mde_solver(n, alpha, power):
 
 
 # ─────────────────────────────────────────────
+#  ANOVA FACTORIELLE (between-subjects multi-facteurs)
+# ─────────────────────────────────────────────
+
+def anova_factorial_n_solver(f, alpha, power, n_cells):
+    """N par cellule pour une ANOVA factorielle entre-sujets à n_cells cellules."""
+    analysis = FTestAnovaPower()
+    n_total = analysis.solve_power(effect_size=f, alpha=alpha, power=power, k_groups=n_cells)
+    return int(math.ceil(n_total / n_cells))
+
+
+def anova_factorial_mde_solver(n_per_cell, alpha, power, n_cells):
+    """MDE pour une ANOVA factorielle avec n_per_cell participants par cellule."""
+    analysis = FTestAnovaPower()
+    f_val = analysis.solve_power(effect_size=None,
+                                  nobs=n_per_cell * n_cells,
+                                  alpha=alpha, power=power, k_groups=n_cells)
+    return round(f_val, 3)
+
+
+# ─────────────────────────────────────────────
 #  LISTE DES TESTS DISPONIBLES
 # ─────────────────────────────────────────────
 
-def list_possible_tests(data):
-    factors   = data.get("factors", {})
-    n_groups  = len(data.get("group_levels", []))
-    n_levels  = len(data.get("level_levels", []))
+def _extract_design_counts(data):
+    """Extrait (n_groups, n_levels, n_cells, n_inter, n_intra) depuis le payload.
+    Supporte le format nouveau (interFactors/intraFactors) et l'ancien (group_levels/level_levels).
+    """
+    interFactors = data.get("interFactors", [])
+    intraFactors = data.get("intraFactors", [])
 
-    inter = [k for k, v in factors.items() if v == "between"]
-    intra = [k for k, v in factors.items() if v == "within"]
+    if interFactors or intraFactors:
+        valid_inter = [f for f in interFactors if len(f.get("levels", [])) >= 2]
+        valid_intra = [f for f in intraFactors if len(f.get("levels", [])) >= 2]
+        n_inter = len(valid_inter)
+        n_intra = len(valid_intra)
+        n_groups = len(valid_inter[0]["levels"]) if valid_inter else 0
+        n_levels = len(valid_intra[0]["levels"]) if valid_intra else 0
+        n_cells  = 1
+        for fac in valid_inter:
+            n_cells *= len(fac["levels"])
+    else:
+        # Ancien format
+        n_groups = len(data.get("group_levels", []))
+        n_levels = len(data.get("level_levels", []))
+        n_inter  = 1 if n_groups >= 2 else 0
+        n_intra  = 1 if n_levels >= 2 else 0
+        n_cells  = n_groups
+
+    return n_groups, n_levels, n_cells, n_inter, n_intra
+
+
+def list_possible_tests(data):
+    n_groups, n_levels, n_cells, n_inter, n_intra = _extract_design_counts(data)
     tests = []
 
-    # Between uniquement
-    if len(inter) >= 1 and n_groups >= 2 and not intra:
-        if n_groups == 2:
+    # Between-subjects uniquement
+    if n_inter >= 1 and n_intra == 0:
+        if n_cells == 2:
             tests.append("ttest")
-        tests.append("anova")
+        if n_inter == 1:
+            tests.append("anova")
+        else:
+            tests.append("anova_factorial")
 
-    # Within uniquement
-    if len(intra) >= 1 and n_levels >= 2:
+    # Within-subjects uniquement
+    if n_intra >= 1 and n_inter == 0:
         tests.append("anova_rm")
         tests.append("lmm")
 
     # Mixte
-    if len(inter) >= 1 and n_groups >= 2 and len(intra) >= 1 and n_levels >= 2:
-        if "anova_rm" not in tests:
-            tests.append("anova_rm")
+    if n_inter >= 1 and n_intra >= 1:
         tests.append("anova_mixed")
-        if "lmm" not in tests:
-            tests.append("lmm")
+        tests.append("lmm")
 
     # Toujours disponibles
     tests.extend(["ttest_paired", "correlation", "chi2", "regression"])
@@ -327,14 +370,13 @@ def choose_statistical_method(data):
         alpha  = float(data.get("alpha", 0.05))
         power  = float(data.get("power", 0.80))
         f      = float(data.get("f", 0.25))
-        group_levels  = data.get("group_levels", [])
-        level_levels  = data.get("level_levels", [])
-        n_groups = len(group_levels)
-        n_levels = len(level_levels)
         selected_test = data.get("selected_test", None)
         mde_mode  = data.get("mde_mode", False)
         n_given   = data.get("n_given", None)
         random_factor = data.get("random_factor", None)
+
+        # Support nouveau format et ancien format
+        n_groups, n_levels, n_cells, n_inter, n_intra = _extract_design_counts(data)
 
         # Paramètres spécifiques aux nouveaux tests
         r_val        = float(data.get("r", 0.3))
@@ -371,6 +413,11 @@ def choose_statistical_method(data):
             elif selected_test == "anova_rm":
                 f_val = gpower_anova_rm_mde_solver(int(n), alpha, power, num_measurements=n_levels)
                 return {"mde": f_val, "test": "anova_rm",
+                        "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
+
+            elif selected_test == "anova_factorial":
+                f_val = anova_factorial_mde_solver(int(n), alpha, power, max(n_cells, 4))
+                return {"mde": f_val, "test": "anova_factorial",
                         "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
 
             elif selected_test == "anova_mixed":
@@ -428,6 +475,13 @@ def choose_statistical_method(data):
             return {"n_per_group": n, "test": "anova_rm",
                     "interpretation": _interpret_f(f)}
 
+        elif selected_test == "anova_factorial":
+            cells = max(n_cells, 4)
+            n_per_cell = anova_factorial_n_solver(f, alpha, power, cells)
+            n_total = n_per_cell * cells
+            return {"n_per_group": n_per_cell, "n_total": n_total, "test": "anova_factorial",
+                    "n_cells": cells, "interpretation": _interpret_f(f)}
+
         elif selected_test == "anova_mixed":
             if n_groups < 2 or n_levels < 2:
                 return {"error": "2 groupes et 2 niveaux intra requis.", "test": "anova_mixed"}
@@ -464,47 +518,4 @@ def choose_statistical_method(data):
 
         elif selected_test == "regression":
             n = regression_n_solver(f2_val, alpha, power, n_predictors)
-            return {"n_per_group": n, "test": "regression",
-                    "interpretation": _interpret_f2(f2_val)}
-
-        return {"error": "Test non reconnu.", "test": "unknown"}
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return {"error": str(e), "test": data.get("selected_test", "unknown")}
-
-
-# ─────────────────────────────────────────────
-#  INTERPRÉTATIONS PÉDAGOGIQUES
-# ─────────────────────────────────────────────
-
-def _interpret_d(d):
-    d = abs(d)
-    if d < 0.2:   return {"level": "trivial",  "label": "Très petit effet (d < 0.2)"}
-    if d < 0.5:   return {"level": "small",    "label": "Petit effet (0.2 ≤ d < 0.5)"}
-    if d < 0.8:   return {"level": "medium",   "label": "Effet moyen (0.5 ≤ d < 0.8)"}
-    return              {"level": "large",    "label": "Grand effet (d ≥ 0.8)"}
-
-def _interpret_f(f):
-    if f < 0.1:   return {"level": "trivial",  "label": "Très petit effet (f < 0.10)"}
-    if f < 0.25:  return {"level": "small",    "label": "Petit effet (0.10 ≤ f < 0.25)"}
-    if f < 0.4:   return {"level": "medium",   "label": "Effet moyen (0.25 ≤ f < 0.40)"}
-    return              {"level": "large",    "label": "Grand effet (f ≥ 0.40)"}
-
-def _interpret_r(r):
-    r = abs(r)
-    if r < 0.1:   return {"level": "trivial",  "label": "Très faible corrélation (r < 0.10)"}
-    if r < 0.3:   return {"level": "small",    "label": "Faible corrélation (0.10 ≤ r < 0.30)"}
-    if r < 0.5:   return {"level": "medium",   "label": "Corrélation modérée (0.30 ≤ r < 0.50)"}
-    return              {"level": "large",    "label": "Forte corrélation (r ≥ 0.50)"}
-
-def _interpret_w(w):
-    if w < 0.1:   return {"level": "trivial",  "label": "Très petit effet (w < 0.10)"}
-    if w < 0.3:   return {"level": "small",    "label": "Petit effet (0.10 ≤ w < 0.30)"}
-    if w < 0.5:   return {"level": "medium",   "label": "Effet moyen (0.30 ≤ w < 0.50)"}
-    return              {"level": "large",    "label": "Grand effet (w ≥ 0.50)"}
-
-def _interpret_f2(f2):
-    if f2 < 0.02: return {"level": "trivial",  "label": "Très petit effet (f² < 0.02)"}
-    if f2 < 0.15: return {"level": "small",    "label": "Petit effet (0.02 ≤ f² <
+            return {"n_per_group": n, "test

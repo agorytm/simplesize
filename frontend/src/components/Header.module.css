@@ -1,64 +1,67 @@
 .header {
   background: #fff;
-  border-bottom: 1px solid var(--gray-2);
+  border-bottom: 1.5px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 8px rgba(0,0,0,.06);
+  box-shadow: 0 1px 8px rgba(47,52,74,.07);
 }
 
 .inner {
-  max-width: 1280px;
+  max-width: 1380px;
   margin: 0 auto;
-  padding: 0 20px;
-  height: 60px;
+  padding: 0 18px;
+  height: 58px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.logo {
+.brand {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.25rem;
-  color: var(--black);
+  align-items: baseline;
+  gap: 10px;
 }
 
-.logoIcon { font-size: 1.4rem; }
-.logoName { letter-spacing: -.5px; }
-.logoName strong { color: var(--blue); }
-
-.badge {
-  background: var(--blue-l);
-  color: var(--blue);
-  font-size: .65rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 20px;
-  letter-spacing: .5px;
+.title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.5px;
 }
 
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.navLink {
-  color: var(--gray-5);
-  font-size: .9rem;
-  transition: color .15s;
-}
-.navLink:hover { color: var(--blue); text-decoration: none; }
-
-.premiumBtn {
-  background: linear-gradient(135deg, #F5A623, #f07830);
-  color: #fff;
-  font-size: .85rem;
+.tagline {
+  font-size: .8rem;
+  color: var(--muted);
   font-weight: 600;
-  padding: 7px 16px;
-  border-radius: 20px;
-  transition: opacity .15s, transform .1s;
 }
-.premiumBtn:hover { opacity: .9; text-decoration: none; transform: translateY(-1px); }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btnSentence {
+  background: var(--gold);
+  color: #fff;
+  font-weight: 700;
+  font-size: .85rem;
+  padding: 7px 15px;
+  border: none;
+  border-radius: 20px;
+  transition: background .15s, transform .1s;
+}
+.btnSentence:hover { background: var(--gold-d); transform: translateY(-1px); }
+
+.btnExport {
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  font-size: .85rem;
+  padding: 7px 15px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  transition: border-color .15s, color .15s;
+}
+.btnExport:hover:not(:disabled) { border-color: var(--teal); color: 

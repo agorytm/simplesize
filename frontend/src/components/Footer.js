@@ -5,16 +5,12 @@ export default function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
-        <span>© {new Date().getFullYear()} <strong>SimpleSize</strong> — Alternative moderne à G*Power</span>
+        <span>© {new Date().getFullYear()} <strong>SimpleSize</strong></span>
         <span className={styles.sep}>·</span>
-        <a href="#" className={styles.link}>Documentation</a>
+        <a href="https://github.com/agorytm/simplesize" className={styles.link} target="_blank" rel="noreferrer">Documentation</a>
         <span className={styles.sep}>·</span>
-        <a href="#" className={styles.link}>Citer SimpleSize</a>
-        <span className={styles.sep}>·</span>
-        <a href="#" className={styles.link}>Signaler un bug</a>
+        <a href="https://github.com/agorytm/simplesize/issues" className={styles.link} target="_blank" rel="noreferrer">Signaler un bug</a>
         <span className={styles.sep}>·</span>
         <span className={styles.badge}>Open Source</span>
-      </div>
-    </footer>
-  );
-}
+
+        <span className={styles.by}

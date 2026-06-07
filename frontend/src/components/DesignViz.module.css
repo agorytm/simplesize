@@ -1,0 +1,145 @@
+.panel {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  min-height: 200px;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-size: .8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text);
+}
+
+.notation {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 5px;
+  letter-spacing: 0;
+}
+
+.desc {
+  font-size: .78rem;
+  color: var(--muted);
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.gridWrap {
+  overflow-x: auto;
+  margin-bottom: 14px;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: .82rem;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  border: 1.5px solid var(--border);
+  padding: 6px 10px;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.cornerCell {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.factorHeaderCell {
+  background: #edf8fb;
+  color: var(--link);
+  font-weight: 800;
+  font-size: .75rem;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  border-color: var(--border);
+}
+
+.rowFactorCell {
+  background: #edf8fb;
+  color: var(--link);
+  font-weight: 800;
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  border-color: var(--border);
+}
+
+.colCell {
+  background: #f5fafc;
+  font-weight: 700;
+  color: var(--text);
+  border-color: var(--border);
+  min-width: 48px;
+}
+
+.rowLabelCell {
+  background: #f5fafc;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+  min-width: 80px;
+  border-color: var(--border);
+}
+
+.cell {
+  background: #fff;
+  min-width: 48px;
+  min-height: 38px;
+}
+
+.cellN {
+  display: inline-block;
+  color: var(--muted);
+  font-style: italic;
+  font-size: .85rem;
+}
+
+/* Summary */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.summaryItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summaryLabel {
+  font-size: .7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--muted);
+  min-width: 60px;
+}
+
+.summaryValue {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text);
+}

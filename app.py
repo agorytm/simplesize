@@ -74,7 +74,7 @@ def rate_limit(f):
 # ── Validation des inputs ─────────────────────────────────────────────────
 VALID_TESTS = {
     "ttest", "ttest_paired", "anova", "anova_rm",
-    "anova_mixed", "lmm", "correlation", "chi2", "regression"
+    "anova_mixed", "anova_factorial", "lmm", "correlation", "chi2", "regression"
 }
 
 def validate_simplesize_input(data):
@@ -102,13 +102,24 @@ def validate_simplesize_input(data):
             return False, "Taille d'effet hors limites (0.001 – 5.0)."
     except (TypeError, ValueError):
         return False, "Taille d'effet invalide."
-    # Vérifier que les listes de groupes/niveaux sont bien des listes de strings
+    # Valider interFactors / intraFactors (nouveau format)
+    for key in ("interFactors", "intraFactors"):
+        val = data.get(key, [])
+        if not isinstance(val, list):
+            return False, f"{key} doit être une liste."
+        for fac in val:
+            if not isinstance(fac, dict):
+                return False, f"Chaque facteur dans {key} doit être un objet."
+            levels = fac.get("levels", [])
+            if not isinstance(levels, list) or len(levels) > 12:
+                return False, f"Trop de modalités (max 12) ou format invalide dans {key}."
+    # Ancien format
     for key in ("group_levels", "level_levels"):
         val = data.get(key, [])
         if not isinstance(val, list):
             return False, f"{key} doit être une liste."
-        if len(val) > 10:
-            return False, f"Trop de modalités pour {key} (max 10)."
+        if len(val) > 12:
+            return False, f"Trop de modalités pour {key} (max 12)."
     return True, None
 
 # ── Servir le build React ──────────────────────────────────────────────────
@@ -159,11 +170,3 @@ def list_tests():
 # ── API : healthcheck ──────────────────────────────────────────────────────
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok", "version": "2.0.0"})
-
-# ── Lancement ──────────────────────────────────────────────────────────────
-if __name__ == '__main__':
-    port  = int(os.environ.get("PORT", 5000))
-    debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
-    logger.info("SimpleSize API démarré sur port %d (debug=%s)", port, debug)
-    app.run(host="0.0.0.0", port=port, debug=debug)

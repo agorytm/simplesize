@@ -1,34 +1,32 @@
 .footer {
   background: #fff;
-  border-top: 1px solid var(--gray-2);
-  padding: 18px 20px;
+  border-top: 1.5px solid var(--border);
+  padding: 14px 18px;
   margin-top: auto;
 }
 
 .inner {
-  max-width: 1280px;
+  max-width: 1380px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: .82rem;
-  color: var(--gray-4);
+  gap: 8px;
+  font-size: .78rem;
+  color: var(--muted);
   flex-wrap: wrap;
 }
 
-.sep { color: var(--gray-3); }
+.sep { color: var(--border); }
 
 .link {
-  color: var(--gray-4);
+  color: var(--muted);
   transition: color .12s;
 }
-.link:hover { color: var(--blue); }
+.link:hover { color: var(--link); text-decoration: none; }
 
 .badge {
-  background: var(--teal-l);
-  color: var(--teal);
-  font-size: .72rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
-}
+  background: rgba(85,209,227,.1);
+  color: var(--link);
+  font-size: .68rem;
+  font-weight: 800;
+  padding: 2px 8p
