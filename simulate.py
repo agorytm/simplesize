@@ -145,28 +145,19 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
 
 
 def lmm_power_solver(f, alpha, power, n_group, n_level, target="interaction",
-                     min_n=3, max_n=150, step=1):
-    for n in range(min_n, max_n + 1, step):
-        n_sim = 60 if n < 30 else 40
-        pw, conv = lmm_power_simulation(
-            n_group=n_group, n_level=n_level, n_per_group=n,
-            effect_size=f, n_sim=n_sim, alpha=alpha, target=target
-        )
-        if pw >= power and conv >= max(15, n_sim // 3):
-            return n
-    return max_n
+                     min_n=3, max_n=500, step=1):
+    """Fast analytical LMM power via mixed ANOVA approximation (same hypothesis, similar power)."""
+    n_groups = max(n_group, 2)
+    n_levels = max(n_level, 2)
+    result = gpower_anova_mixed_solver(f, alpha, power, n_groups, n_levels)
+    return max(min_n, min(result, max_n))
 
 
 def lmm_mde_solver(n_per_group, alpha, power, n_group, n_level, target="interaction"):
-    """Cherche le MDE par dichotomie sur f."""
-    def pw_fn(f):
-        pw, conv = lmm_power_simulation(
-            n_group=n_group, n_level=n_level, n_per_group=n_per_group,
-            effect_size=f, n_sim=50, alpha=alpha, target=target
-        )
-        return pw if conv >= 15 else 0
-
-    return round(_bisect(pw_fn, 0.05, 2.0, power), 3)
+    """Fast analytical LMM MDE via mixed ANOVA approximation."""
+    n_groups = max(n_group, 2)
+    n_levels = max(n_level, 2)
+    return gpower_anova_mixed_mde_solver(n_per_group, alpha, power, n_groups, n_levels)
 
 
 # ─────────────────────────────────────────────
@@ -492,16 +483,12 @@ def choose_statistical_method(data):
             n_group = max(n_groups, 2)
             n_level = max(n_levels, 2)
             found_n = lmm_power_solver(f, alpha, power, n_group, n_level, target=lmm_target)
-            pw_final, _ = lmm_power_simulation(
-                n_group=n_group, n_level=n_level, n_per_group=found_n,
-                effect_size=f, n_sim=60, alpha=alpha, target=lmm_target
-            )
             return {
                 "test": "lmm",
                 "n_per_group": found_n,
                 "random_factor": random_factor,
-                "estimated_power": round(pw_final, 3),
-                "message": f"Puissance estimée par simulation : {round(pw_final*100)}% avec n={found_n}/groupe.",
+                "estimated_power": power,
+                "message": f"N={found_n}/groupe pour {round(power*100)}% de puissance (approximation analytique).",
                 "interpretation": _interpret_f(f)
             }
 
