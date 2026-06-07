@@ -195,15 +195,12 @@ def correlation_mde_solver(n, alpha, power, two_tailed=True):
 # ─────────────────────────────────────────────
 
 def chi2_n_solver(w, alpha, power, df):
-    """N pour chi² avec effet w (Cohen), df degrés de liberté.
-    Utilise la loi chi² non-centrale (ncx2) de scipy.
-    """
-    # Valeur critique sous H0 (distribution centrale)
+    """N pour chi² avec effet w (Cohen), df degrés de liberté."""
     from scipy.stats import chi2 as chi2_central
     crit = chi2_central.ppf(1 - alpha, df)
 
     def power_fn(n):
-        lam = n * w ** 2          # paramètre de non-centralité
+        lam = n * w ** 2
         return 1 - ncx2.cdf(crit, df, lam)
 
     for n in range(2, 10001):
@@ -229,7 +226,7 @@ def chi2_mde_solver(n, alpha, power, df):
 
 def regression_n_solver(f2, alpha, power, n_predictors):
     """N pour régression multiple — f² = R²/(1-R²)."""
-    u = n_predictors  # df numérateur
+    u = n_predictors
 
     def power_fn(n):
         v = n - u - 1
@@ -405,30 +402,31 @@ def choose_statistical_method(data):
 
             elif selected_test == "anova":
                 analysis = FTestAnovaPower()
-                f_val = analysis.solve_power(effect_size=None, nobs=n * n_groups,
-                                             alpha=alpha, power=power, k_groups=n_groups)
+                f_val = analysis.solve_power(effect_size=None, nobs=n * max(n_groups, 2),
+                                             alpha=alpha, power=power, k_groups=max(n_groups, 2))
                 return {"mde": round(f_val, 3), "test": "anova",
                         "label": "Cohen's f", "interpretation": _interpret_f(round(f_val, 3))}
 
-            elif selected_test == "anova_rm":
-                f_val = gpower_anova_rm_mde_solver(int(n), alpha, power, num_measurements=n_levels)
-                return {"mde": f_val, "test": "anova_rm",
-                        "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
-
             elif selected_test == "anova_factorial":
-                f_val = anova_factorial_mde_solver(int(n), alpha, power, max(n_cells, 4))
+                cells = max(n_cells, 4)
+                f_val = anova_factorial_mde_solver(int(n), alpha, power, cells)
                 return {"mde": f_val, "test": "anova_factorial",
                         "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
 
+            elif selected_test == "anova_rm":
+                f_val = gpower_anova_rm_mde_solver(int(n), alpha, power, num_measurements=max(n_levels, 2))
+                return {"mde": f_val, "test": "anova_rm",
+                        "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
+
             elif selected_test == "anova_mixed":
-                n_total = int(n) * n_groups
-                f_val = gpower_anova_mixed_mde_solver(n_total, alpha, power, n_groups, n_levels)
+                n_total = int(n) * max(n_groups, 2)
+                f_val = gpower_anova_mixed_mde_solver(n_total, alpha, power, max(n_groups, 2), max(n_levels, 2))
                 return {"mde": f_val, "test": "anova_mixed",
                         "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
 
             elif selected_test == "lmm":
-                f_val = lmm_mde_solver(int(n), alpha, power, n_group=n_groups or 2,
-                                       n_level=n_levels or 2, target=lmm_target)
+                f_val = lmm_mde_solver(int(n), alpha, power, n_group=max(n_groups, 2),
+                                       n_level=max(n_levels, 2), target=lmm_target)
                 return {"mde": f_val, "test": "lmm", "label": "Cohen's f",
                         "interpretation": _interpret_f(f_val), "random_factor": random_factor}
 
@@ -464,15 +462,9 @@ def choose_statistical_method(data):
 
         elif selected_test == "anova":
             analysis = FTestAnovaPower()
-            n_total = analysis.solve_power(effect_size=f, alpha=alpha, power=power, k_groups=n_groups)
-            return {"n_per_group": int(math.ceil(n_total / n_groups)), "test": "anova",
-                    "interpretation": _interpret_f(f)}
-
-        elif selected_test == "anova_rm":
-            if n_levels < 2:
-                return {"error": "Au moins 2 modalités intra requises.", "test": "anova_rm"}
-            n = gpower_anova_rm_solver(f, alpha, power, num_measurements=n_levels)
-            return {"n_per_group": n, "test": "anova_rm",
+            k = max(n_groups, 2)
+            n_total = analysis.solve_power(effect_size=f, alpha=alpha, power=power, k_groups=k)
+            return {"n_per_group": int(math.ceil(n_total / k)), "test": "anova",
                     "interpretation": _interpret_f(f)}
 
         elif selected_test == "anova_factorial":
@@ -482,6 +474,13 @@ def choose_statistical_method(data):
             return {"n_per_group": n_per_cell, "n_total": n_total, "test": "anova_factorial",
                     "n_cells": cells, "interpretation": _interpret_f(f)}
 
+        elif selected_test == "anova_rm":
+            if n_levels < 2:
+                return {"error": "Au moins 2 modalités intra requises.", "test": "anova_rm"}
+            n = gpower_anova_rm_solver(f, alpha, power, num_measurements=n_levels)
+            return {"n_per_group": n, "test": "anova_rm",
+                    "interpretation": _interpret_f(f)}
+
         elif selected_test == "anova_mixed":
             if n_groups < 2 or n_levels < 2:
                 return {"error": "2 groupes et 2 niveaux intra requis.", "test": "anova_mixed"}
@@ -490,8 +489,8 @@ def choose_statistical_method(data):
                     "interpretation": _interpret_f(f)}
 
         elif selected_test == "lmm":
-            n_group = n_groups if n_groups >= 2 else 2
-            n_level = n_levels if n_levels >= 2 else 2
+            n_group = max(n_groups, 2)
+            n_level = max(n_levels, 2)
             found_n = lmm_power_solver(f, alpha, power, n_group, n_level, target=lmm_target)
             pw_final, _ = lmm_power_simulation(
                 n_group=n_group, n_level=n_level, n_per_group=found_n,
@@ -518,4 +517,45 @@ def choose_statistical_method(data):
 
         elif selected_test == "regression":
             n = regression_n_solver(f2_val, alpha, power, n_predictors)
-            return {"n_per_group": n, "test
+            return {"n_per_group": n, "test": "regression",
+                    "interpretation": _interpret_f2(f2_val)}
+
+        return {"error": "Test non reconnu.", "test": "unknown"}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "test": data.get("selected_test", "unknown")}
+
+
+def _interpret_d(d):
+    d = abs(d)
+    if d < 0.2:   return {"level": "trivial",  "label": "d < 0.2"}
+    if d < 0.5:   return {"level": "small",    "label": "0.2 <= d < 0.5"}
+    if d < 0.8:   return {"level": "medium",   "label": "0.5 <= d < 0.8"}
+    return              {"level": "large",    "label": "d >= 0.8"}
+
+def _interpret_f(f):
+    if f < 0.1:   return {"level": "trivial",  "label": "f < 0.10"}
+    if f < 0.25:  return {"level": "small",    "label": "0.10 <= f < 0.25"}
+    if f < 0.4:   return {"level": "medium",   "label": "0.25 <= f < 0.40"}
+    return              {"level": "large",    "label": "f >= 0.40"}
+
+def _interpret_r(r):
+    r = abs(r)
+    if r < 0.1:   return {"level": "trivial",  "label": "r < 0.10"}
+    if r < 0.3:   return {"level": "small",    "label": "0.10 <= r < 0.30"}
+    if r < 0.5:   return {"level": "medium",   "label": "0.30 <= r < 0.50"}
+    return              {"level": "large",    "label": "r >= 0.50"}
+
+def _interpret_w(w):
+    if w < 0.1:   return {"level": "trivial",  "label": "w < 0.10"}
+    if w < 0.3:   return {"level": "small",    "label": "0.10 <= w < 0.30"}
+    if w < 0.5:   return {"level": "medium",   "label": "0.30 <= w < 0.50"}
+    return              {"level": "large",    "label": "w >= 0.50"}
+
+def _interpret_f2(f2):
+    if f2 < 0.02: return {"level": "trivial",  "label": "f2 < 0.02"}
+    if f2 < 0.15: return {"level": "small",    "label": "0.02 <= f2 < 0.15"}
+    if f2 < 0.35: return {"level": "medium",   "label": "0.15 <= f2 < 0.35"}
+    return              {"level": "large",    "label": "f2 >= 0.35"}
