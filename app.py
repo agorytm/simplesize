@@ -170,3 +170,8 @@ def list_tests():
 # ── API : healthcheck ──────────────────────────────────────────────────────
 @app.route('/api/health', methods=['GET'])
 def health():
+    return jsonify({"status": "ok", "version": "2.0.0"})
+
+
+if __name__ == '__main__':
+    app.run(debug=False)
