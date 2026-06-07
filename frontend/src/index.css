@@ -1,0 +1,49 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue:    #3B6FE0;
+  --blue-d:  #2B57C8;
+  --blue-l:  #EEF3FF;
+  --teal:    #0FA88A;
+  --teal-l:  #E6F7F4;
+  --yellow:  #F5A623;
+  --red:     #E53E3E;
+  --gray-1:  #F7F8FA;
+  --gray-2:  #EDF0F5;
+  --gray-3:  #C9D0DC;
+  --gray-4:  #8A93A6;
+  --gray-5:  #4A5568;
+  --black:   #1A202C;
+  --radius:  10px;
+  --shadow:  0 2px 12px rgba(0,0,0,.08);
+  --font:    'Inter', system-ui, -apple-system, sans-serif;
+}
+
+html { font-size: 16px; }
+body { font-family: var(--font); background: var(--gray-1); color: var(--black); min-height: 100vh; }
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button { cursor: pointer; font-family: inherit; }
+
+input, select {
+  font-family: inherit;
+  font-size: .95rem;
+  border: 1.5px solid var(--gray-3);
+  border-radius: 7px;
+  padding: 8px 12px;
+  transition: border-color .15s, box-shadow .15s;
+  background: #fff;
+  width: 100%;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(59,111,224,.12);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--gray-2); }
+::-webkit-scrollbar-thumb { background: var(--gray-3); border-radius: 3px; }
