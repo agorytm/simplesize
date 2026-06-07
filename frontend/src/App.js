@@ -166,8 +166,8 @@ function App() {
         factors,
         group_levels,
         level_levels,
-        interFactors, // Ajoute cette ligne !
-        intraFactors  // Et celle-ci aussi
+        interFactors: data.interFactors || [],
+        intraFactors: data.intraFactors || []
       };
 
       try {
