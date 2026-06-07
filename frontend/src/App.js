@@ -63,14 +63,14 @@ export default function App() {
       intraFactors,
       alpha,
       power,
-      effect_size: f,
+      f: f,
       mde_mode: mdeMode,
       n_given: mdeMode ? parseInt(nGiven) : undefined,
       lmm_target: lmmTarget,
-      r_val: rVal,
+      r: rVal,
       chi2_df: chi2Df,
       n_predictors: nPredictors,
-      f2_val: f2Val,
+      f2: f2Val,
     };
     try {
       const res = await fetch(`${API}/api/simplesize`, {
