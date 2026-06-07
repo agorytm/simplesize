@@ -8,6 +8,7 @@ import SentenceModal from './components/SentenceModal';
 import styles from './App.module.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+
 const DEFAULT_INTER = [{ name: 'Group', levels: ['A', 'B'] }];
 const DEFAULT_INTRA = [];
 
@@ -16,16 +17,18 @@ export default function App() {
   const [intraFactors, setIntraFactors] = useState(DEFAULT_INTRA);
   const [possibleTests, setPossibleTests] = useState([]);
   const [selectedTest,  setSelectedTest]  = useState(null);
-  const [alpha,     setAlpha]     = useState(0.05);
-  const [power,     setPower]     = useState(0.80);
-  const [f,         setF]         = useState(0.25);
-  const [mdeMode,   setMdeMode]   = useState(false);
-  const [nGiven,    setNGiven]    = useState('');
-  const [lmmTarget, setLmmTarget] = useState('interaction');
+
+  const [alpha,       setAlpha]       = useState(0.05);
+  const [power,       setPower]       = useState(0.80);
+  const [f,           setF]           = useState(0.25);
+  const [mdeMode,     setMdeMode]     = useState(false);
+  const [nGiven,      setNGiven]      = useState('');
+  const [lmmTarget,   setLmmTarget]   = useState('interaction');
   const [rVal,        setRVal]        = useState(0.3);
   const [chi2Df,      setChi2Df]      = useState(1);
   const [nPredictors, setNPredictors] = useState(1);
   const [f2Val,       setF2Val]       = useState(0.15);
+
   const [result,  setResult]  = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
@@ -56,14 +59,18 @@ export default function App() {
     setResult(null);
     const payload = {
       selected_test: selectedTest,
-      interFactors, intraFactors, alpha, power,
-      effect_size: selectedTest === 'correlation' ? rVal
-                 : selectedTest === 'regression'  ? f2Val : f,
+      interFactors,
+      intraFactors,
+      alpha,
+      power,
+      effect_size: f,
       mde_mode: mdeMode,
-      n_given: mdeMode ? Number(nGiven) : undefined,
+      n_given: mdeMode ? parseInt(nGiven) : undefined,
       lmm_target: lmmTarget,
+      r_val: rVal,
       chi2_df: chi2Df,
       n_predictors: nPredictors,
+      f2_val: f2Val,
     };
     try {
       const res = await fetch(`${API}/api/simplesize`, {
@@ -86,11 +93,10 @@ export default function App() {
     const lines = [
       'SimpleSize — Résultat',
       `Test : ${selectedTest}`,
-      `Alpha : ${alpha}  |  Puissance : ${power}`,
+      `α = ${alpha}  |  Power = ${power}  |  f = ${f}`,
       result.n_per_group != null ? `N par groupe : ${result.n_per_group}` : '',
       result.n_total     != null ? `N total : ${result.n_total}` : '',
       result.mde         != null ? `MDE : ${result.mde}` : '',
-      result.interpretation ? `Interprétation : ${result.interpretation}` : '',
     ].filter(Boolean).join('\n');
     const blob = new Blob([lines], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -101,30 +107,51 @@ export default function App() {
 
   return (
     <div className={styles.app}>
-      <Header hasResult={!!result} onExport={handleExport} onSentence={() => setShowSentence(true)} />
+      <Header
+        onSentence={() => setShowSentence(true)}
+        onExport={handleExport}
+        hasResult={!!result}
+      />
       <main className={styles.main}>
         <div className={styles.grid}>
           <DesignBuilder
-            interFactors={interFactors} intraFactors={intraFactors}
-            onChangeInter={setInterFactors} onChangeIntra={setIntraFactors}
+            interFactors={interFactors} setInterFactors={setInterFactors}
+            intraFactors={intraFactors}  setIntraFactors={setIntraFactors}
           />
-          <DesignViz interFactors={interFactors} intraFactors={intraFactors} />
+          <DesignViz
+            interFactors={interFactors}
+            intraFactors={intraFactors}
+          />
           <TestParamPanel
-            possibleTests={possibleTests} selectedTest={selectedTest} onSelectTest={setSelectedTest}
-            alpha={alpha} onAlpha={setAlpha} power={power} onPower={setPower}
-            f={f} onF={setF} mdeMode={mdeMode} onMdeMode={setMdeMode}
-            nGiven={nGiven} onNGiven={setNGiven} lmmTarget={lmmTarget} onLmmTarget={setLmmTarget}
-            rVal={rVal} onRVal={setRVal} chi2Df={chi2Df} onChi2Df={setChi2Df}
-            nPredictors={nPredictors} onNPredictors={setNPredictors} f2Val={f2Val} onF2Val={setF2Val}
-            result={result} loading={loading} error={error} onCalculate={handleCalculate}
+            possibleTests={possibleTests}
+            selectedTest={selectedTest}
+            onSelectTest={setSelectedTest}
+            alpha={alpha}             setAlpha={setAlpha}
+            power={power}             setPower={setPower}
+            f={f}                     setF={setF}
+            mdeMode={mdeMode}         setMdeMode={setMdeMode}
+            nGiven={nGiven}           setNGiven={setNGiven}
+            lmmTarget={lmmTarget}     setLmmTarget={setLmmTarget}
+            rVal={rVal}               setRVal={setRVal}
+            chi2Df={chi2Df}           setChi2Df={setChi2Df}
+            nPredictors={nPredictors} setNPredictors={setNPredictors}
+            f2Val={f2Val}             setF2Val={setF2Val}
+            result={result}
+            loading={loading}
+            error={error}
+            onCalculate={handleCalculate}
           />
         </div>
       </main>
       <Footer />
       {showSentence && (
         <SentenceModal
-          selectedTest={selectedTest} result={result} alpha={alpha} power={power}
-          interFactors={interFactors} intraFactors={intraFactors}
+          selectedTest={selectedTest}
+          result={result}
+          alpha={alpha}
+          power={power}
+          interFactors={interFactors}
+          intraFactors={intraFactors}
           onClose={() => setShowSentence(false)}
         />
       )}

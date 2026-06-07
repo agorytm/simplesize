@@ -12,9 +12,7 @@ export default function Footer() {
         <a href="https://github.com/agorytm/simplesize/issues" className={styles.link} target="_blank" rel="noreferrer">Signaler un bug</a>
         <span className={styles.sep}>·</span>
         <span className={styles.badge}>Open Source</span>
-        <span className={styles.by}>
-          by <a href="https://github.com/agorytm" target="_blank" rel="noreferrer">agorytm</a>
-        </span>
+        <span className={styles.by}>by agorytm</span>
       </div>
     </footer>
   );
