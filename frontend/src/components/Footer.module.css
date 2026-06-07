@@ -1,7 +1,7 @@
 .footer {
-  background: #fff;
+  background: var(--card);
   border-top: 1.5px solid var(--border);
-  padding: 14px 18px;
+  padding: 10px 18px;
   margin-top: auto;
 }
 
@@ -18,10 +18,7 @@
 
 .sep { color: var(--border); }
 
-.link {
-  color: var(--muted);
-  transition: color .12s;
-}
+.link { color: var(--muted); transition: color .12s; }
 .link:hover { color: var(--link); text-decoration: none; }
 
 .badge {
@@ -29,4 +26,16 @@
   color: var(--link);
   font-size: .68rem;
   font-weight: 800;
-  padding: 2px 8p
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: .3px;
+}
+
+.by {
+  margin-left: auto;
+  font-size: .72rem;
+  color: var(--muted);
+  opacity: .65;
+}
+.by a { color: var(--muted); font-weight: 700; }
+.by a:hover { color: var(--link); text-decoration: none; }

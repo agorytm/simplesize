@@ -1,59 +1,38 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
-  --bg:      #f4f6f8;
-  --text:    #2f344a;
-  --link:    #55d1e3;
-  --border:  #d8e0ef;
-  --card:    #ffffff;
-  --gold:    #f5a623;
-  --gold-d:  #d48b14;
-  --teal:    #55d1e3;
-  --teal-d:  #3ab8cb;
-  --danger:  #e53e3e;
-  --success: #38a169;
-  --muted:   #8a93a6;
-  --font:    'Nunito', Arial, sans-serif;
-  --radius:  8px;
-  --shadow:  0 2px 14px rgba(47,52,74,.09);
+  --bg:     #f4f6f8;
+  --text:   #2f344a;
+  --link:   #55d1e3;
+  --border: #d8e0ef;
+  --card:   #ffffff;
+  --gold:   #f5a623;
+  --teal:   #55d1e3;
+  --muted:  #8a93b0;
+  --font:   'Nunito', Arial, sans-serif;
 }
 
-html { font-size: 15px; }
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
+  margin: 0;
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-a { color: var(--link); text-decoration: none; }
+a {
+  color: var(--link);
+  text-decoration: none;
+}
 a:hover { text-decoration: underline; }
 
-button { cursor: pointer; font-family: inherit; }
-
-input, select {
-  background: #fff;
-  border: 1.5px solid var(--border);
-  border-radius: 7px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 14px;
-  padding: 7px 12px;
-  transition: border-color .15s, box-shadow .15s;
-}
-input:focus, select:focus {
-  outline: none;
-  border-color: var(--link);
-  box-shadow: 0 0 0 3px rgba(85,209,227,.15);
-}
-
-h1, h2, h3, h4 {
-  font-weight: 700;
-  letter-spacing: -0.4px;
+input, select, button, textarea {
   font-family: var(--font);
 }
 
-::-webkit-scrollba
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
