@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 function AnovaForm({
-  formData, onUpdate, conversionInfo, showConversionInfo, selectedTest, onLmmLaunch, isLoadingLmm,
+  formData, onUpdate, conversionInfo, showConversionInfo, selectedTest, onLmmLaunch, isLoadingLmm, onRun,
   interFactors: externalInterFactors = null,
   intraFactors: externalIntraFactors = null
 }) {
@@ -247,11 +247,17 @@ function AnovaForm({
           <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>
             0.10 = small · 0.30 = medium · 0.50 = large
           </div>
-          <label style={labelStyle}>Degrees of freedom (df)</label>
+          <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>
+            Degrees of freedom (df)
+            <span title="The degrees of freedom depend on your test:\n• Goodness-of-fit test (1 variable, k categories): df = k − 1\n• Contingency table (2 variables, r rows × c columns): df = (r−1) × (c−1)\n\nExample: 2×3 table → df = (2−1)×(3−1) = 2"
+              style={{ cursor: "help", color: "#55D1E3", fontSize: 15, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", flexShrink: 0 }}>
+              i
+            </span>
+          </label>
           <input type="number" step="1" min="1" value={chi2Df}
             onChange={e => setChi2Df(e.target.value)} style={inputStyle} />
           <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>
-            df = (rows − 1) × (cols − 1)
+            1 variable k catégories : df = k−1 · tableau r×c : df = (r−1)×(c−1)
           </div>
         </>
       ) : (
@@ -300,6 +306,19 @@ function AnovaForm({
               {isLoadingLmm ? "Calculating…" : "Run LMM calculation"}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Run button for non-LMM tests */}
+      {selectedTest && selectedTest !== "lmm" && (
+        <div style={{ margin: "14px 0 6px 0" }}>
+          <button
+            type="button"
+            style={{ background: "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 15, padding: "10px 24px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: "pointer", boxShadow: "0 2px 10px #55d1e326", width: "100%" }}
+            onClick={() => onRun && onRun()}
+          >
+            ▶ Run analysis
+          </button>
         </div>
       )}
 

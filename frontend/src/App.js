@@ -622,6 +622,7 @@ const handleLmmLaunch = async () => {
           isLoadingLmm={isLoadingLmm}
           interFactors={interFactors}
           intraFactors={intraFactors}
+          onRun={() => selectedTest && selectedTest !== "lmm" && handleTestSelect(selectedTest)}
         />
       </div>
     </div>
