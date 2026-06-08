@@ -482,13 +482,24 @@ def choose_statistical_method(data):
         elif selected_test == "lmm":
             n_group = max(n_groups, 2)
             n_level = max(n_levels, 2)
+            # Step 1: find N via analytical approximation (fast <0.01s)
             found_n = lmm_power_solver(f, alpha, power, n_group, n_level, target=lmm_target)
+            # Step 2: validate with Monte Carlo at found_n (no iteration → fast)
+            user_n_sim = int(data.get("n_sim", 50))
+            actual_n_sim = max(10, min(user_n_sim, 500))
+            pw_final, conv = lmm_power_simulation(
+                n_group=n_group, n_level=n_level, n_per_group=found_n,
+                effect_size=f, n_sim=actual_n_sim, alpha=alpha, target=lmm_target
+            )
+            sim_power = round(pw_final, 3) if conv > 0 else power
             return {
                 "test": "lmm",
                 "n_per_group": found_n,
                 "random_factor": random_factor,
-                "estimated_power": power,
-                "message": f"N={found_n}/groupe pour {round(power*100)}% de puissance (approximation analytique).",
+                "estimated_power": sim_power,
+                "n_sim": actual_n_sim,
+                "converged": conv,
+                "message": f"N={found_n}/groupe — puissance simulée : {round(sim_power*100)}% ({actual_n_sim} simulations, {conv}/{actual_n_sim} convergences).",
                 "interpretation": _interpret_f(f)
             }
 

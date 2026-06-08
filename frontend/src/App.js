@@ -129,7 +129,74 @@ function App() {
           ➝ Power analysis based on a model with fixed and random effects.<br />
           ➝ Requires specifying a random factor (usually “participants”).<br />
           ➝ Allows accounting for multiple sources of variability.<br /><br />
-          <b>Note</b>: Power calculation for LMMs relies on simulations and may take several seconds.
+          <b>Method</b>: N found analytically, then validated by Monte Carlo simulations on the server.
+        </>
+      )
+    }
+    ,
+    ttest_paired: {
+      title: "Paired t-test",
+      content: (
+        <>
+          <b>Normality of differences</b><br />
+          ➝ Check: Shapiro–Wilk on the difference scores (post − pre)<br />
+          ➝ Robustness: not very sensitive if N &gt; 30
+          <br /><br />
+          <b>Dependence between measures</b><br />
+          ➝ Each participant is measured twice — they are their own control
+          <br /><br />
+          <b>Effect size d</b>: 0.2 = small · 0.5 = medium · 0.8 = large
+        </>
+      )
+    },
+    correlation: {
+      title: "Correlation (Pearson r)",
+      content: (
+        <>
+          <b>Linearity</b><br />
+          ➝ Check: scatterplot between the two variables<br />
+          ➝ If non-linear, use Spearman's ρ instead
+          <br /><br />
+          <b>Bivariate normality</b><br />
+          ➝ Check: Shapiro–Wilk per variable · Robustness: not critical if N &gt; 30
+          <br /><br />
+          <b>No influential outliers</b><br />
+          ➝ Check: scatterplot — one outlier can strongly distort r
+          <br /><br />
+          <b>Effect size r</b>: 0.10 = small · 0.30 = medium · 0.50 = large
+        </>
+      )
+    },
+    chi2: {
+      title: "Chi-square test",
+      content: (
+        <>
+          <b>Independence of observations</b><br />
+          ➝ Each participant counted only once (essential)
+          <br /><br />
+          <b>Minimum expected cell count</b><br />
+          ➝ All expected frequencies ≥ 5<br />
+          ➝ If violated: use Fisher's exact test or merge categories
+          <br /><br />
+          <b>Degrees of freedom</b>: df = (rows − 1) × (cols − 1)
+          <br /><br />
+          <b>Effect size w</b>: 0.10 = small · 0.30 = medium · 0.50 = large
+        </>
+      )
+    },
+    regression: {
+      title: "Multiple Linear Regression",
+      content: (
+        <>
+          <b>Linearity</b> — Check: residuals vs. fitted plot
+          <br /><br />
+          <b>Independence of residuals</b> — Check: Durbin–Watson test
+          <br /><br />
+          <b>Homoscedasticity</b> — Check: Breusch–Pagan test
+          <br /><br />
+          <b>Normality of residuals</b> — Check: Q-Q plot (not critical N &gt; 50)
+          <br /><br />
+          <b>Effect size f²</b> = R²/(1−R²): 0.02 = small · 0.15 = medium · 0.35 = large
         </>
       )
     }
@@ -221,7 +288,7 @@ function App() {
     const level_levels = intraFactors.length > 0 && intraFactors[0].levels.length > 0
       ? intraFactors[0].levels : [];
 
-    let fValue = parseFloat(formData.f.replace(",", "."));
+    let fValue = parseFloat((formData.f || "0.25").replace(",", "."));
     let effectToSend = fValue;
     // Conversion automatique pour t-test
     if (test === "ttest" && !isNaN(fValue)) {
@@ -235,14 +302,19 @@ function App() {
     if (test === "lmm") return;
 
     const payload = {
-      alpha: parseFloat(formData.alpha.replace(",", ".")),
-      power: parseFloat(formData.power.replace(",", ".")),
+      alpha: parseFloat((formData.alpha || "0.05").replace(",", ".")),
+      power: parseFloat((formData.power || "0.8").replace(",", ".")),
       f: effectToSend,
+      r: parseFloat((formData.r || "0.3").replace(",", ".")),
+      f2: parseFloat((formData.f2 || "0.15").replace(",", ".")),
+      chi2_df: parseInt(formData.chi2_df || 1),
+      n_predictors: parseInt(formData.n_predictors || 1),
+      two_tailed: true,
       factors,
       group_levels,
       level_levels,
-      interFactors,
-      intraFactors,
+      interFactors: data.interFactors || interFactors,
+      intraFactors: data.intraFactors || intraFactors,
       selected_test: test
     };
 
@@ -276,16 +348,17 @@ const handleLmmLaunch = async () => {
     ? intraFactors[0].levels : [];
 
   const payload = {
-    alpha: parseFloat(formData.alpha.replace(",", ".")),
-    power: parseFloat(formData.power.replace(",", ".")),
-    f: parseFloat(formData.f.replace(",", ".")),
+    alpha: parseFloat((formData.alpha || "0.05").replace(",", ".")),
+    power: parseFloat((formData.power || "0.8").replace(",", ".")),
+    f: parseFloat((formData.f || "0.25").replace(",", ".")),
     factors,
     group_levels,
     level_levels,
+    interFactors,
+    intraFactors,
     selected_test: "lmm",
     random_factor: formData.randomFactor,
-    // AJOUT ICI !
-    n_sim: formData.nSimulations || 20
+    n_sim: formData.nSimulations || 50
   };
   try {
     const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
@@ -411,6 +484,9 @@ const handleLmmLaunch = async () => {
         }}
       />
       SimpleSize
+      <span style={{ fontSize: 11, color: "#B0B8D4", fontWeight: 400, marginLeft: 10, letterSpacing: 0 }}>
+        by Agorytm
+      </span>
     </div>
     <button
       style={{
@@ -513,24 +589,7 @@ const handleLmmLaunch = async () => {
             </button>
           </>
         )}
-        {selectedTest === "lmm" && result && (
-          <div
-            style={{
-              marginTop: 20,
-              background: "#fffbe6",
-              border: "1.5px solid #ffe59e",
-              color: "#cc9d28",
-              borderRadius: 10,
-              fontWeight: 600,
-              fontSize: 16,
-              padding: "12px 17px",
-              textAlign: "center",
-            }}
-          >
-            Warning: this computation is based on few simulations. Interpret
-            results with caution (feature in development).
-          </div>
-        )}
+
       </div>
 
       {/* RIGHT */}
