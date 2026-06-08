@@ -572,18 +572,35 @@ const handleLmmLaunch = async () => {
 
       {/* CENTER */}
       <div style={centerPanelStyle} ref={centerPanelRef}>
-        {(selectedTest !== "lmm" ||
-          (selectedTest === "lmm" && result?.plan)) && (
+        {(result?.n_per_group != null) && (
           <>
             <DesignVisualizer
               groupFactors={interFactors}
               levelFactors={intraFactors}
               selectedTest={selectedTest}
               testTitle={testTitle}
-              plan={selectedTest === "lmm" ? result?.plan : null}
               nPerGroup={result?.n_per_group}
               formData={formData}
+              result={result}
             />
+
+            {selectedTest === "lmm" && result?.estimated_power != null && (
+              <div style={{ margin: "10px 0 6px 0", background: "#f0f8ff", border: "1px solid #b3d8f0", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#334" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4, color: "#1a6a9a" }}>
+                  Résultat simulation LMM
+                </div>
+                <div>
+                  <b>N par groupe :</b> {result.n_per_group}
+                  &nbsp;·&nbsp;
+                  <b>Puissance simulée :</b> {Math.round(result.estimated_power * 100)}%
+                  &nbsp;·&nbsp;
+                  <b>Simulations :</b> {result.n_sim} ({result.converged} convergées)
+                </div>
+                {result.message && (
+                  <div style={{ marginTop: 5, color: "#555", fontStyle: "italic" }}>{result.message}</div>
+                )}
+              </div>
+            )}
 
             <button style={exportButtonStyle} onClick={handleExportJpeg}>
               Export

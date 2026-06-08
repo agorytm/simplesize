@@ -26,7 +26,8 @@ function DesignVisualizer({
   selectedTest,
   testTitle,
   plan,
-  formData = {}
+  formData = {},
+  result = null
 }) {
   // Clean factors (non-empty name AND at least 2 levels)
   const cleanedInter = groupFactors.filter(f => (f.name && (f.levels?.length || 0) >= 2));
