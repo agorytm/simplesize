@@ -99,26 +99,47 @@ def gpower_anova_mixed_mde_solver(n_total, alpha, power, n_groups, n_levels, cor
 def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
                           effect_size=0.25, n_sim=100,
                           alpha=0.05, target="interaction"):
+    """
+    Mixed-design LMM power simulation.
+    - n_per_group subjects per group (between-subjects factor)
+    - each subject measured n_level times (within-subjects factor)
+    - subjects are NESTED within groups (each subject belongs to one group only)
+    - random intercept per subject
+    """
     np.random.seed(42)
     rejections = 0
     converged = 0
 
+    n_subjects = n_per_group * n_group  # total subjects
+
+    # Fixed effect means matrix: mu[group, level]
+    # Symmetric ±f pattern: RMS of interaction contrasts = effect_size (= Cohen's f, σ_e=1)
+    mu = np.zeros((n_group, n_level))
+    if target == "interaction" and n_group >= 2 and n_level >= 2:
+        for _i in range(n_group):
+            for _j in range(n_level):
+                mu[_i, _j] = effect_size * ((-1) ** (_i + _j))
+    elif target == "group":
+        for _i in range(n_group):
+            mu[_i, :] = effect_size * ((-1) ** _i)
+    elif target == "level":
+        for _j in range(n_level):
+            mu[:, _j] = effect_size * ((-1) ** _j)
+
     for _ in range(n_sim):
-        group  = np.repeat(np.arange(n_group), n_per_group * n_level)
-        level  = np.tile(np.repeat(np.arange(n_level), n_per_group), n_group)
-        subject = np.tile(np.arange(n_per_group * n_group), n_level)
+        # Each subject belongs to one group; each subject measured n_level times
+        # Structure: n_subjects × n_level rows total
+        group   = np.repeat(np.repeat(np.arange(n_group), n_per_group), n_level)
+        level   = np.tile(np.arange(n_level), n_subjects)
+        subject = np.repeat(np.arange(n_subjects), n_level)
 
-        mu = np.zeros((n_group, n_level))
-        if target == "interaction" and n_group >= 2 and n_level >= 2:
-            mu[1, 1] = effect_size
-        elif target == "group":
-            mu[1, :] = effect_size
-        elif target == "level":
-            mu[:, 1] = effect_size
+        # Random subject intercept (same for all observations of a subject)
+        subj_effect = np.random.normal(0, 0.5, size=n_subjects)
 
+        # Residual noise + signal + random intercept
         y = (mu[group, level]
-             + np.random.normal(0, 1, size=len(group))
-             + np.random.normal(0, 0.5, size=len(group)))  # random subject effect
+             + np.random.normal(0, 1.0, size=len(group))
+             + subj_effect[subject])
 
         df = pd.DataFrame({"group": group.astype(str),
                            "level": level.astype(str),
