@@ -20,8 +20,8 @@ function App() {
   const [selectedTest, setSelectedTest] = useState(null);
   const [isLoadingLmm, setIsLoadingLmm] = useState(false);
   const [designTouched, setDesignTouched] = useState(false);
-  const [leftTab, setLeftTab] = useState("experimental"); // "experimental" | "direct"
-  const [directParamsTouched, setDirectParamsTouched] = useState(false);
+  const [designMode, setDesignMode] = useState("experimental"); // "experimental" | "variables"
+  const [variablesTest, setVariablesTest] = useState(null); // "correlation" | "regression" | "chi2" | null
 
   // Pour le pop-up conversion f -> d
   const [conversionInfo, setConversionInfo] = useState("");
@@ -211,10 +211,7 @@ function App() {
       if (data.interFactors) setInterFactors(data.interFactors);
       if (data.intraFactors) setIntraFactors(data.intraFactors);
       setFormData(data);
-      // Ungray direct tests when user touches relevant params
-      if (['r','f2','n_predictors','chi2_df','f','alpha','power'].some(k => data[k] !== undefined)) {
-        setDirectParamsTouched(true);
-      }
+
       // Detect user interaction: any named factor, any level, or from sentence template
       const hasActivity =
         data._fromTemplate ||
@@ -268,18 +265,17 @@ function App() {
       }
     };
 
-    // Simple tests (correlation, chi2, regression) always available — no design needed
-    const simpleTests = ["correlation", "chi2", "regression"];
 
   // ----------- CALCUL DU TEST SÉLECTIONNÉ -----------
   const handleTestSelect = async (test) => {
     setSelectedTest(test);
     setResult(null);
-    // Auto-switch left tab based on test type
+    // Auto-switch design mode when test is selected from left panel
     if (['correlation','chi2','regression'].includes(test)) {
-      setLeftTab("direct");
+      setDesignMode("variables");
+      setVariablesTest(test);
     } else {
-      setLeftTab("experimental");
+      setDesignMode("experimental");
     }
 
     // Prépare les facteurs pour le backend
@@ -521,101 +517,54 @@ const handleLmmLaunch = async () => {
     <div style={containerStyle}>
       {/* LEFT */}
       <div style={leftPanelStyle}>
-
-        {/* ── Tabs ── */}
-        <div style={{ display: "flex", marginBottom: 14, borderBottom: "2px solid #E7ECF2" }}>
-          {[
-            { key: "experimental", label: "🔬 Experimental" },
-            { key: "direct", label: "📊 Direct" }
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setLeftTab(key)}
-              style={{
-                flex: 1,
-                padding: "7px 4px",
-                fontWeight: leftTab === key ? 700 : 400,
-                fontSize: 13,
-                color: leftTab === key ? "#1a8fa8" : "#9AA3C0",
-                background: "none",
-                border: "none",
-                borderBottom: leftTab === key ? "2.5px solid #55D1E3" : "2.5px solid transparent",
-                marginBottom: -2,
-                cursor: "pointer",
-                transition: "all 0.15s"
-              }}
-            >
-              {label}
-            </button>
-          ))}
+        <div style={{ fontWeight: 600, fontSize: 14, color: "#8A93B2", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
+          Proposed tests
         </div>
 
-        {/* ── Experimental tab ── */}
-        {leftTab === "experimental" && (
-          <>
-            {possibleTests.length === 0 ? (
-              <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", marginBottom: 14, lineHeight: 1.5 }}>
-                Define your factors on the right<br />→ the matching tests will appear here.
+        {/* Experimental mode: tests based on defined factors */}
+        {designMode === "experimental" && (
+          possibleTests.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
+              Define your factors on the right<br />— the matching tests will appear here.
+            </div>
+          ) : (
+            possibleTests.map((test) => (
+              <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+                <button style={testButtonStyle(selectedTest === test, false)} onClick={() => handleTestSelect(test)}>
+                  {testLabels[test] || test.toUpperCase()}
+                </button>
+                {testInfos[test] && (
+                  <span
+                    style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
+                    onClick={() => setInfoModal({ open: true, testKey: test })}
+                  >i</span>
+                )}
               </div>
-            ) : (
-              possibleTests.map((test) => (
-                <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-                  <button
-                    style={testButtonStyle(selectedTest === test, false)}
-                    onClick={() => handleTestSelect(test)}
-                  >
-                    {testLabels[test] || test.toUpperCase()}
-                  </button>
-                  {testInfos[test] && (
-                    <span
-                      style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 19, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
-                      title="Information and assumptions"
-                      onClick={() => setInfoModal({ open: true, testKey: test })}
-                    >
-                      i
-                    </span>
-                  )}
-                </div>
-              ))
-            )}
-          </>
+            ))
+          )
         )}
 
-        {/* ── Direct tab ── */}
-        {leftTab === "direct" && (
-          <>
-            {!directParamsTouched && !['correlation','chi2','regression'].includes(selectedTest) ? (
-              <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", marginBottom: 14, lineHeight: 1.5 }}>
-                Set α, power and effect size on the right<br />→ the matching tests will appear here.
-              </div>
-            ) : null}
-            {simpleTests.map((test) => {
-              // Ungray logic: active once user has touched params OR test is already selected
-              const isActive = directParamsTouched || ['correlation','chi2','regression'].includes(selectedTest);
-              return (
-                <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6, opacity: isActive ? 1 : 0.4 }}>
-                  <button
-                    style={testButtonStyle(selectedTest === test, false)}
-                    onClick={() => { setDirectParamsTouched(true); handleTestSelect(test); }}
-                    disabled={false}
-                  >
-                    {testLabels[test] || test.toUpperCase()}
-                  </button>
-                  {testInfos[test] && (
-                    <span
-                      style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 19, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
-                      title="Information and assumptions"
-                      onClick={() => setInfoModal({ open: true, testKey: test })}
-                    >
-                      i
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </>
+        {/* Variables mode: test proposed based on radio selection */}
+        {designMode === "variables" && (
+          !variablesTest ? (
+            <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
+              Select what you want to study on the right<br />— the matching test will appear here.
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+              <button style={testButtonStyle(selectedTest === variablesTest, false)} onClick={() => handleTestSelect(variablesTest)}>
+                {testLabels[variablesTest] || variablesTest.toUpperCase()}
+              </button>
+              {testInfos[variablesTest] && (
+                <span
+                  style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
+                  onClick={() => setInfoModal({ open: true, testKey: variablesTest })}
+                >i</span>
+              )}
+            </div>
+          )
         )}
-
+      </div>
       </div>
 
       {/* CENTER */}
@@ -670,7 +619,15 @@ const handleLmmLaunch = async () => {
           isLoadingLmm={isLoadingLmm}
           interFactors={interFactors}
           intraFactors={intraFactors}
-          onRun={() => selectedTest && selectedTest !== "lmm" && handleTestSelect(selectedTest)}
+          onRun={() => {
+            const test = designMode === "variables" ? variablesTest : selectedTest;
+            if (test && test !== "lmm") handleTestSelect(test);
+          }}
+          onDesignModeChange={(mode) => setDesignMode(mode)}
+          onVariablesTestChange={(test) => {
+            setVariablesTest(test);
+            if (test) setSelectedTest(test);
+          }}
         />
       </div>
     </div>

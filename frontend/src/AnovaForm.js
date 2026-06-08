@@ -3,7 +3,9 @@ import React, { useState, useEffect } from 'react';
 function AnovaForm({
   formData, onUpdate, conversionInfo, showConversionInfo, selectedTest, onLmmLaunch, isLoadingLmm, onRun,
   interFactors: externalInterFactors = null,
-  intraFactors: externalIntraFactors = null
+  intraFactors: externalIntraFactors = null,
+  onDesignModeChange,
+  onVariablesTestChange,
 }) {
   const [interFactors, setInterFactors] = useState(externalInterFactors || [{ name: '', levels: [] }]);
   const [intraFactors, setIntraFactors] = useState(externalIntraFactors || [{ name: '', levels: [] }]);
@@ -13,15 +15,15 @@ function AnovaForm({
   const [alpha, setAlpha] = useState(formData.alpha || "0.05");
   const [power, setPower] = useState(formData.power || "0.8");
   const [f, setF] = useState(formData.f || "0.25");
-
-  // New test-specific params
   const [r, setR] = useState(formData.r || "0.3");
   const [chi2Df, setChi2Df] = useState(formData.chi2_df || "1");
   const [nPredictors, setNPredictors] = useState(formData.n_predictors || "1");
   const [f2, setF2] = useState(formData.f2 || "0.15");
-
-  // LMM
   const [randomFactor, setRandomFactor] = useState(formData.randomFactor || "");
+
+  // Design mode tabs
+  const [designTab, setDesignTab] = useState("experimental");
+  const [varType, setVarType] = useState(null); // "correlation" | "regression" | "chi2"
 
   // MDE
   const [hasSample, setHasSample] = useState(false);
@@ -71,6 +73,15 @@ function AnovaForm({
     }
   }, [nGiven, hasSample, selectedTest, interFactors, intraFactors, alpha, power, r, f, f2, chi2Df, nPredictors]);
 
+  // Notify parent when design mode or variables test changes
+  useEffect(() => {
+    if (onDesignModeChange) onDesignModeChange(designTab);
+  }, [designTab]);
+
+  useEffect(() => {
+    if (onVariablesTestChange) onVariablesTestChange(varType);
+  }, [varType]);
+
   const fetchMDE = async () => {
     const groupLevels = interFactors[0]?.levels || [];
     const levelLevels = intraFactors[0]?.levels || [];
@@ -117,11 +128,8 @@ function AnovaForm({
   };
   const factorColors = ["#4fc6e1", "#f9b448", "#e99db9"];
 
-  const isSimpleTest = ['correlation', 'chi2', 'regression', 'ttest_paired'].includes(selectedTest);
-
   let effetLabel = "f";
   if (selectedTest === "ttest" || selectedTest === "ttest_paired") effetLabel = "d";
-
   let showWarning = false;
   if (mde && ((selectedTest === "ttest" && mde > 0.8) || (selectedTest !== "ttest" && mde > 0.4))) showWarning = true;
 
@@ -132,197 +140,266 @@ function AnovaForm({
   }
   const allFactors = [...interFactors, ...intraFactors];
 
+  const tabBarStyle = {
+    display: "flex",
+    borderBottom: "2px solid #E7ECF2",
+    marginBottom: 16,
+    marginTop: 4,
+  };
+  const tabBtnStyle = (active) => ({
+    flex: 1,
+    padding: "8px 6px",
+    fontWeight: active ? 700 : 400,
+    fontSize: 13,
+    color: active ? "#1a8fa8" : "#9AA3C0",
+    background: "none",
+    border: "none",
+    borderBottom: active ? "2.5px solid #55D1E3" : "2.5px solid transparent",
+    marginBottom: -2,
+    cursor: "pointer",
+    transition: "all 0.15s",
+  });
+
+  const radioOptionStyle = (active) => ({
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: "10px 12px",
+    marginBottom: 8,
+    borderRadius: 9,
+    border: active ? "1.5px solid #55D1E3" : "1.5px solid #E7ECF2",
+    background: active ? "#f0fbfd" : "#fafbfc",
+    cursor: "pointer",
+  });
+
   return (
     <form onSubmit={e => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 }}>
-      <span style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Define the design</span>
 
-      {/* Factor design fields - always visible */}
-      {true && <>
-        {interFactors.map((factor, idx) => (
-          <div key={`inter-${idx}`} style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>{`Between-subject factor name ${idx + 1}`}</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <input type="text" value={factor.name}
-                onChange={e => { const copy = [...interFactors]; copy[idx].name = e.target.value; setInterFactors(copy); }}
-                style={{ ...inputStyle, backgroundColor: getFactorColor(factor, allFactors) }}
+      {/* DESIGN MODE TABS */}
+      <div style={tabBarStyle}>
+        <button type="button" style={tabBtnStyle(designTab === "experimental")}
+          onClick={() => setDesignTab("experimental")}>
+          Experimental design
+        </button>
+        <button type="button" style={tabBtnStyle(designTab === "variables")}
+          onClick={() => setDesignTab("variables")}>
+          Variables & relations
+        </button>
+      </div>
+
+      {/* ── EXPERIMENTAL TAB ── */}
+      {designTab === "experimental" && (
+        <>
+          <span style={{ fontWeight: 600, fontSize: 15, marginBottom: 10, color: "#2F344A" }}>Define your design</span>
+
+          {interFactors.map((factor, idx) => (
+            <div key={`inter-${idx}`} style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>{`Between-subject factor ${idx + 1}`}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <input type="text" value={factor.name}
+                  onChange={e => { const copy = [...interFactors]; copy[idx].name = e.target.value; setInterFactors(copy); }}
+                  style={{ ...inputStyle, backgroundColor: getFactorColor(factor, allFactors) }}
+                />
+                {canAdd && interFactors.length < 2 && idx === interFactors.length - 1 && (
+                  <button type="button" onClick={() => setInterFactors([...interFactors, { name: '', levels: [] }])} style={addButtonStyle} title="Add between-subject factor">+</button>
+                )}
+                {interFactors.length > 1 && (
+                  <button type="button" onClick={() => setInterFactors(interFactors.filter((_, i) => i !== idx))} style={removeButtonStyle}>-</button>
+                )}
+              </div>
+              <label style={labelStyle}>Groups</label>
+              <input type="text" value={factor.levelInput || ''} placeholder="Add a group"
+                onChange={e => { const copy = [...interFactors]; copy[idx].levelInput = e.target.value; setInterFactors(copy); }}
+                style={inputStyle}
               />
-              {canAdd && interFactors.length < 2 && idx === interFactors.length - 1 && (
-                <button type="button" onClick={() => setInterFactors([...interFactors, { name: '', levels: [] }])} style={addButtonStyle} title="Add between-subject factor">+</button>
-              )}
-              {interFactors.length > 1 && (
-                <button type="button" onClick={() => setInterFactors(interFactors.filter((_, i) => i !== idx))} style={removeButtonStyle} title="Remove">-</button>
-              )}
+              <button type="button" onClick={() => {
+                const copy = [...interFactors];
+                if (copy[idx].levelInput && !copy[idx].levels?.includes(copy[idx].levelInput.trim())) {
+                  copy[idx].levels = [...(copy[idx].levels || []), copy[idx].levelInput.trim()];
+                  copy[idx].levelInput = ''; setInterFactors(copy);
+                }
+              }} style={addButtonStyle}>+</button>
+              <div>{(factor.levels || []).map((lvl, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', background: '#f2f6ff', borderRadius: 9, padding: '4px 7px 4px 11px', fontSize: 14, margin: '0 6px 6px 0', fontWeight: 500, color: '#357' }}>
+                  {lvl}
+                  <button type="button" onClick={() => { const copy = [...interFactors]; copy[idx].levels = copy[idx].levels.filter((_, j) => j !== i); setInterFactors(copy); }} style={removeButtonStyle}>-</button>
+                </span>
+              ))}</div>
             </div>
-            <label style={labelStyle}>Groups</label>
-            <input type="text" value={factor.levelInput || ''} placeholder="Add a group"
-              onChange={e => { const copy = [...interFactors]; copy[idx].levelInput = e.target.value; setInterFactors(copy); }}
-              style={inputStyle}
-            />
-            <button type="button" onClick={() => {
-              const copy = [...interFactors];
-              if (copy[idx].levelInput && !copy[idx].levels?.includes(copy[idx].levelInput.trim())) {
-                copy[idx].levels = [...(copy[idx].levels || []), copy[idx].levelInput.trim()];
-                copy[idx].levelInput = ''; setInterFactors(copy);
-              }
-            }} style={addButtonStyle}>+</button>
-            <div>{(factor.levels || []).map((lvl, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', background: '#f2f6ff', borderRadius: 9, padding: '4px 7px 4px 11px', fontSize: 14, margin: '0 6px 6px 0', fontWeight: 500, color: '#357' }}>
-                {lvl}
-                <button type="button" onClick={() => { const copy = [...interFactors]; copy[idx].levels = copy[idx].levels.filter((_, j) => j !== i); setInterFactors(copy); }} style={removeButtonStyle}>-</button>
-              </span>
-            ))}</div>
-          </div>
-        ))}
+          ))}
 
-        {intraFactors.map((factor, idx) => (
-          <div key={`intra-${idx}`} style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>{`Within-subject factor name ${idx + 1}`}</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <input type="text" value={factor.name}
-                onChange={e => { const copy = [...intraFactors]; copy[idx].name = e.target.value; setIntraFactors(copy); }}
-                style={{ ...inputStyle, backgroundColor: getFactorColor(factor, allFactors) }}
+          {intraFactors.map((factor, idx) => (
+            <div key={`intra-${idx}`} style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>{`Within-subject factor ${idx + 1}`}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <input type="text" value={factor.name}
+                  onChange={e => { const copy = [...intraFactors]; copy[idx].name = e.target.value; setIntraFactors(copy); }}
+                  style={{ ...inputStyle, backgroundColor: getFactorColor(factor, allFactors) }}
+                />
+                {canAdd && intraFactors.length < 2 && idx === intraFactors.length - 1 && (
+                  <button type="button" onClick={() => setIntraFactors([...intraFactors, { name: '', levels: [] }])} style={addButtonStyle}>+</button>
+                )}
+                {intraFactors.length > 1 && (
+                  <button type="button" onClick={() => setIntraFactors(intraFactors.filter((_, i) => i !== idx))} style={removeButtonStyle}>-</button>
+                )}
+              </div>
+              <label style={labelStyle}>Levels</label>
+              <input type="text" value={factor.levelInput || ''} placeholder="Add a level"
+                onChange={e => { const copy = [...intraFactors]; copy[idx].levelInput = e.target.value; setIntraFactors(copy); }}
+                style={inputStyle}
               />
-              {canAdd && intraFactors.length < 2 && idx === intraFactors.length - 1 && (
-                <button type="button" onClick={() => setIntraFactors([...intraFactors, { name: '', levels: [] }])} style={addButtonStyle} title="Add within-subject factor">+</button>
-              )}
-              {intraFactors.length > 1 && (
-                <button type="button" onClick={() => setIntraFactors(intraFactors.filter((_, i) => i !== idx))} style={removeButtonStyle}>-</button>
-              )}
+              <button type="button" onClick={() => {
+                const copy = [...intraFactors];
+                if (copy[idx].levelInput && !copy[idx].levels?.includes(copy[idx].levelInput.trim())) {
+                  copy[idx].levels = [...(copy[idx].levels || []), copy[idx].levelInput.trim()];
+                  copy[idx].levelInput = ''; setIntraFactors(copy);
+                }
+              }} style={addButtonStyle}>+</button>
+              <div>{(factor.levels || []).map((lvl, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', background: '#fff7e0', borderRadius: 9, padding: '4px 7px 4px 11px', fontSize: 14, margin: '0 6px 6px 0', fontWeight: 500, color: '#b4880a' }}>
+                  {lvl}
+                  <button type="button" onClick={() => { const copy = [...intraFactors]; copy[idx].levels = copy[idx].levels.filter((_, j) => j !== i); setIntraFactors(copy); }} style={removeButtonStyle}>-</button>
+                </span>
+              ))}</div>
             </div>
-            <label style={labelStyle}>Levels</label>
-            <input type="text" value={factor.levelInput || ''} placeholder="Add a level"
-              onChange={e => { const copy = [...intraFactors]; copy[idx].levelInput = e.target.value; setIntraFactors(copy); }}
-              style={inputStyle}
-            />
-            <button type="button" onClick={() => {
-              const copy = [...intraFactors];
-              if (copy[idx].levelInput && !copy[idx].levels?.includes(copy[idx].levelInput.trim())) {
-                copy[idx].levels = [...(copy[idx].levels || []), copy[idx].levelInput.trim()];
-                copy[idx].levelInput = ''; setIntraFactors(copy);
-              }
-            }} style={addButtonStyle}>+</button>
-            <div>{(factor.levels || []).map((lvl, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', background: '#fff7e0', borderRadius: 9, padding: '4px 7px 4px 11px', fontSize: 14, margin: '0 6px 6px 0', fontWeight: 500, color: '#b4880a' }}>
-                {lvl}
-                <button type="button" onClick={() => { const copy = [...intraFactors]; copy[idx].levels = copy[idx].levels.filter((_, j) => j !== i); setIntraFactors(copy); }} style={removeButtonStyle}>-</button>
-              </span>
-            ))}</div>
-          </div>
-        ))}
-      </>}
+          ))}
 
-      {/* alpha & power (always shown) */}
-      <label style={labelStyle}>α</label>
-      <input type="text" value={alpha} onChange={e => setAlpha(e.target.value)} style={inputStyle} />
-      <label style={labelStyle}>Power</label>
-      <input type="text" value={power} onChange={e => setPower(e.target.value)} style={inputStyle} />
-
-      {/* Effect size — adapts to selected test */}
-      {selectedTest === "correlation" ? (
-        <>
-          <label style={labelStyle}>Expected r (Pearson)</label>
-          <input type="number" step="0.01" min="0.01" max="0.99" value={r}
-            onChange={e => setR(e.target.value)} style={inputStyle} placeholder="e.g. 0.3" />
-          <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>
-            0.10 = small · 0.30 = medium · 0.50 = large
-          </div>
-        </>
-      ) : selectedTest === "regression" ? (
-        <>
-          <label style={labelStyle}>Effect size f²</label>
-          <input type="number" step="0.01" min="0.01" value={f2}
-            onChange={e => setF2(e.target.value)} style={inputStyle} placeholder="e.g. 0.15" />
-          <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>
-            f² = R²/(1−R²) · 0.02 = small · 0.15 = medium · 0.35 = large
-          </div>
-          <label style={labelStyle}>Number of predictors</label>
-          <input type="number" step="1" min="1" value={nPredictors}
-            onChange={e => setNPredictors(e.target.value)} style={inputStyle} />
-        </>
-      ) : selectedTest === "chi2" ? (
-        <>
-          <label style={labelStyle}>Effect size w (Cohen's w)</label>
-          <input type="number" step="0.01" min="0.01" value={f}
-            onChange={e => setF(e.target.value)} style={inputStyle} placeholder="e.g. 0.3" />
-          <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>
-            0.10 = small · 0.30 = medium · 0.50 = large
-          </div>
-          <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>
-            Degrees of freedom (df)
-            <span title="The degrees of freedom depend on your test:\n• Goodness-of-fit test (1 variable, k categories): df = k − 1\n• Contingency table (2 variables, r rows × c columns): df = (r−1) × (c−1)\n\nExample: 2×3 table → df = (2−1)×(3−1) = 2"
-              style={{ cursor: "help", color: "#55D1E3", fontSize: 15, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", flexShrink: 0 }}>
-              i
-            </span>
-          </label>
-          <input type="number" step="1" min="1" value={chi2Df}
-            onChange={e => setChi2Df(e.target.value)} style={inputStyle} />
-          <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>
-            1 variable k catégories : df = k−1 · tableau r×c : df = (r−1)×(c−1)
-          </div>
-        </>
-      ) : (
-        <>
-          <label style={labelStyle}>Expected effect size (f)</label>
+          <label style={labelStyle}>Alpha (α)</label>
+          <input type="text" value={alpha} onChange={e => setAlpha(e.target.value)} style={inputStyle} />
+          <label style={labelStyle}>Power</label>
+          <input type="text" value={power} onChange={e => setPower(e.target.value)} style={inputStyle} />
+          <label style={labelStyle}>Effect size (f)</label>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <input type="number" step="0.01" value={f} onChange={e => setF(e.target.value)} style={inputStyle} placeholder="e.g. 0.25" />
             {showConversionInfo && (
-              <div style={{ marginLeft: 10, background: "#fff6da", border: "1.5px solid #FBC02D", color: "#B4880A", fontWeight: 600, fontSize: 14, borderRadius: 10, padding: "6px 13px", boxShadow: "0 1px 8px #B4880A22", textAlign: "center" }}>
+              <div style={{ marginLeft: 10, background: "#fff6da", border: "1.5px solid #FBC02D", color: "#B4880A", fontWeight: 600, fontSize: 14, borderRadius: 10, padding: "6px 13px", boxShadow: "0 1px 8px #B4880A22" }}>
                 {conversionInfo}
               </div>
             )}
           </div>
           <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>
-            <div><b>f</b> (ANOVA): 0.10 = small, 0.25 = medium, 0.40 = large.</div>
-            <div><b>d</b> (t-test): 0.2 = small, 0.5 = medium, 0.8 = large.<br />For t-test, conversion <b>f → d</b> is automatic.</div>
+            <div><b>f</b> (ANOVA): 0.10 = small, 0.25 = medium, 0.40 = large</div>
+            <div><b>d</b> (t-test): 0.2 = small, 0.5 = medium, 0.8 = large — conversion automatic</div>
           </div>
+
+          {selectedTest === "lmm" && (
+            <label style={{ fontWeight: 500, fontSize: 14, marginBottom: 6 }}>
+              Simulations:&nbsp;
+              <select value={formData.nSimulations || 50}
+                onChange={e => onUpdate({ ...formData, nSimulations: Number(e.target.value) })}
+                style={{ marginLeft: 7, padding: "4px 10px", borderRadius: 7, border: "1px solid #ddd", fontSize: 14 }}>
+                <option value={50}>fast (50)</option>
+                <option value={200}>precise (200)</option>
+                <option value={500}>very precise (500)</option>
+              </select>
+            </label>
+          )}
+
+          {selectedTest === "lmm" && (
+            <div style={{ margin: "10px 0 10px 0", padding: "13px 13px 6px 13px", background: "#f6faff", borderRadius: 10, border: "1.3px solid #98d9ed" }}>
+              <label style={{ ...labelStyle, fontWeight: 600, color: "#209" }}>Random factor (e.g., participant)</label>
+              <input type="text" value={randomFactor} onChange={e => setRandomFactor(e.target.value)}
+                style={{ ...inputStyle, width: 140 }} placeholder="participant" />
+              <div style={{ marginTop: 13, marginBottom: 2 }}>
+                <button type="button"
+                  style={{ background: isLoadingLmm ? "#E0E7EF" : "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 15, padding: "10px 22px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: isLoadingLmm ? "not-allowed" : "pointer", boxShadow: "0 2px 10px #55d1e326", minWidth: 54 }}
+                  onClick={() => { if (!isLoadingLmm && onLmmLaunch) onLmmLaunch(); }}
+                  disabled={isLoadingLmm || !randomFactor.trim()}
+                >
+                  {isLoadingLmm ? "Calculating..." : "Run LMM calculation"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedTest && selectedTest !== "lmm" && (
+            <div style={{ margin: "14px 0 6px 0" }}>
+              <button type="button"
+                style={{ background: "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 15, padding: "10px 24px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: "pointer", boxShadow: "0 2px 10px #55d1e326", width: "100%" }}
+                onClick={() => onRun && onRun()}>
+                Run analysis
+              </button>
+            </div>
+          )}
         </>
       )}
 
-      {/* LMM controls */}
-      {selectedTest === "lmm" && (
-        <label style={{ fontWeight: 500, fontSize: 14, marginBottom: 6 }}>
-          Simulations:&nbsp;
-          <select value={formData.nSimulations || 50}
-            onChange={e => onUpdate({ ...formData, nSimulations: Number(e.target.value) })}
-            style={{ marginLeft: 7, padding: "4px 10px", borderRadius: 7, border: "1px solid #ddd", fontSize: 14 }}>
-            <option value={50}>fast (50)</option>
-            <option value={200}>precise (200)</option>
-            <option value={500}>very precise (500)</option>
-          </select>
-        </label>
+      {/* ── VARIABLES & RELATIONS TAB ── */}
+      {designTab === "variables" && (
+        <>
+          <span style={{ fontWeight: 600, fontSize: 15, marginBottom: 12, color: "#2F344A" }}>What do you want to study?</span>
+
+          {[
+            { key: "correlation", label: "Association between two variables", desc: "Is there a link between X and Y?" },
+            { key: "regression",  label: "Prediction",                        desc: "Does X predict Y? (one or more predictors)" },
+            { key: "chi2",        label: "Frequency distribution",            desc: "Are categories distributed as expected?" },
+          ].map(({ key, label, desc }) => (
+            <div key={key} style={radioOptionStyle(varType === key)} onClick={() => setVarType(key)}>
+              <input type="radio" name="varType" value={key} checked={varType === key} onChange={() => setVarType(key)} style={{ marginTop: 3, accentColor: "#55D1E3" }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "#2F344A" }}>{label}</div>
+                <div style={{ fontSize: 12, color: "#778", marginTop: 2 }}>{desc}</div>
+              </div>
+            </div>
+          ))}
+
+          {varType && (
+            <div style={{ marginTop: 10 }}>
+              <label style={labelStyle}>Alpha (α)</label>
+              <input type="text" value={alpha} onChange={e => setAlpha(e.target.value)} style={inputStyle} />
+              <label style={labelStyle}>Power</label>
+              <input type="text" value={power} onChange={e => setPower(e.target.value)} style={inputStyle} />
+
+              {varType === "correlation" && (
+                <>
+                  <label style={labelStyle}>Expected r (Pearson)</label>
+                  <input type="number" step="0.01" min="0.01" max="0.99" value={r}
+                    onChange={e => setR(e.target.value)} style={inputStyle} />
+                  <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>0.10 = small · 0.30 = medium · 0.50 = large</div>
+                </>
+              )}
+
+              {varType === "regression" && (
+                <>
+                  <label style={labelStyle}>Effect size f²</label>
+                  <input type="number" step="0.01" min="0.01" value={f2} onChange={e => setF2(e.target.value)} style={inputStyle} />
+                  <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>0.02 = small · 0.15 = medium · 0.35 = large</div>
+                  <label style={labelStyle}>Number of predictors</label>
+                  <input type="number" step="1" min="1" value={nPredictors} onChange={e => setNPredictors(e.target.value)} style={inputStyle} />
+                </>
+              )}
+
+              {varType === "chi2" && (
+                <>
+                  <label style={labelStyle}>Effect size w (Cohen's w)</label>
+                  <input type="number" step="0.01" min="0.01" value={f} onChange={e => setF(e.target.value)} style={inputStyle} />
+                  <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>0.10 = small · 0.30 = medium · 0.50 = large</div>
+                  <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>
+                    Degrees of freedom (df)
+                    <span
+                      title="Goodness-of-fit (1 variable, k categories): df = k-1. Contingency table (r rows x c columns): df = (r-1) x (c-1). Example: 2x3 table → df = 2."
+                      style={{ cursor: "help", color: "#55D1E3", fontSize: 13, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 17, height: 17, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", flexShrink: 0 }}>
+                      i
+                    </span>
+                  </label>
+                  <input type="number" step="1" min="1" value={chi2Df} onChange={e => setChi2Df(e.target.value)} style={inputStyle} />
+                  <div style={{ fontSize: 12, color: "#779", margin: "2px 0 9px 3px" }}>1 variable k categories: df = k-1 · table r×c: df = (r-1)×(c-1)</div>
+                </>
+              )}
+
+              <div style={{ margin: "14px 0 6px 0" }}>
+                <button type="button"
+                  style={{ background: "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 15, padding: "10px 24px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: "pointer", boxShadow: "0 2px 10px #55d1e326", width: "100%" }}
+                  onClick={() => onRun && onRun()}>
+                  Run analysis
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      {selectedTest === "lmm" && (
-        <div style={{ margin: "10px 0 10px 0", padding: "13px 13px 6px 13px", background: "#f6faff", borderRadius: 10, border: "1.3px solid #98d9ed" }}>
-          <label style={{ ...labelStyle, fontWeight: 600, color: "#209" }}>Random factor (e.g., participant)</label>
-          <input type="text" value={randomFactor} onChange={e => setRandomFactor(e.target.value)}
-            style={{ ...inputStyle, width: 140 }} placeholder='participant' />
-          <div style={{ marginTop: 13, marginBottom: 2 }}>
-            <button type="button"
-              style={{ background: isLoadingLmm ? "#E0E7EF" : "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 16, padding: "10px 22px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: isLoadingLmm ? "not-allowed" : "pointer", boxShadow: "0 2px 10px #55d1e326", minWidth: 54 }}
-              onClick={() => { if (!isLoadingLmm && onLmmLaunch) onLmmLaunch(); }}
-              disabled={isLoadingLmm || !randomFactor.trim()}
-            >
-              {isLoadingLmm ? "Calculating…" : "Run LMM calculation"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Run button for non-LMM tests */}
-      {selectedTest && selectedTest !== "lmm" && (
-        <div style={{ margin: "14px 0 6px 0" }}>
-          <button
-            type="button"
-            style={{ background: "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 15, padding: "10px 24px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: "pointer", boxShadow: "0 2px 10px #55d1e326", width: "100%" }}
-            onClick={() => onRun && onRun()}
-          >
-            ▶ Run analysis
-          </button>
-        </div>
-      )}
-
-      {/* MDE */}
+      {/* MDE — shown in both tabs */}
       <div style={{ margin: '20px 0 2px 0', background: '#f8fafc', padding: '12px 13px 7px 13px', borderRadius: 13, border: '1.5px solid #E7ECF2', boxShadow: '0 2px 9px #d1eaff18' }}>
         <label style={{ display: 'flex', alignItems: 'center', fontWeight: 500, fontSize: 14, marginBottom: 5 }}>
           <input type="checkbox" checked={hasSample} onChange={e => setHasSample(e.target.checked)} style={{ marginRight: 7 }} />
@@ -330,23 +407,22 @@ function AnovaForm({
         </label>
         {hasSample && (
           <div style={{ marginTop: 4 }}>
-            <>
-              <label style={{ fontSize: 13 }}>
-                N per group
-                <input type="number" min={1} value={nGiven} onChange={e => setNGiven(e.target.value)}
-                  style={{ ...inputStyle, width: 90, marginLeft: 8 }} />
-              </label>
-              {mde && (
-                <div style={{ background: "#e7f8ed", border: "1.5px solid #45b688", color: "#216747", marginTop: 10, fontWeight: 600, fontSize: 15, borderRadius: 9, padding: "8px 13px", textAlign: "center" }}>
-                  Min. detectable effect: <b>{effetLabel} = {mde}</b>
-                  {showWarning && <div style={{ color: "#a64e1c", background: "#fff0e6", borderRadius: 7, fontWeight: 600, fontSize: 13, marginTop: 8, padding: "5px 10px", border: "1.2px solid #f9b79b" }}>Warning: this sample size only detects large effects.</div>}
-                </div>
-              )}
-              {mdeError && <div style={{ background: "#fff2e6", border: "1.5px solid #e18d53", color: "#a14b16", marginTop: 10, fontWeight: 600, fontSize: 14, borderRadius: 9, padding: "8px 13px", textAlign: "center" }}>{mdeError}</div>}
-            </>
+            <label style={{ fontSize: 13 }}>
+              N per group
+              <input type="number" min={1} value={nGiven} onChange={e => setNGiven(e.target.value)}
+                style={{ ...inputStyle, width: 90, marginLeft: 8 }} />
+            </label>
+            {mde && (
+              <div style={{ background: "#e7f8ed", border: "1.5px solid #45b688", color: "#216747", marginTop: 10, fontWeight: 600, fontSize: 15, borderRadius: 9, padding: "8px 13px", textAlign: "center" }}>
+                Min. detectable effect: <b>{effetLabel} = {mde}</b>
+                {showWarning && <div style={{ color: "#a64e1c", background: "#fff0e6", borderRadius: 7, fontWeight: 600, fontSize: 13, marginTop: 8, padding: "5px 10px", border: "1.2px solid #f9b79b" }}>Warning: this sample size only detects large effects.</div>}
+              </div>
+            )}
+            {mdeError && <div style={{ background: "#fff2e6", border: "1.5px solid #e18d53", color: "#a14b16", marginTop: 10, fontWeight: 600, fontSize: 14, borderRadius: 9, padding: "8px 13px", textAlign: "center" }}>{mdeError}</div>}
           </div>
         )}
       </div>
+
     </form>
   );
 }
