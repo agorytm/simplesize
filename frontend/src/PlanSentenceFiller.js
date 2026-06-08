@@ -92,6 +92,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
       power: (power / 100).toString(),
       f: effectSize === "small" ? "0.10" : effectSize === "medium" ? "0.25" : "0.40",
       randomFactor: formData.randomFactor || "",
+      _fromTemplate: true,
     });
   };
 
@@ -110,6 +111,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
         power: pwr,
         r: rMap[effectSizeBiv],
         f: "0.25",
+        _fromTemplate: true,
       });
     } else if (bivariate_goal === "prediction") {
       onApply({
@@ -121,6 +123,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
         f2: f2Map[effectSizeBiv],
         n_predictors: String(nPredictors),
         f: "0.25",
+        _fromTemplate: true,
       });
     } else if (bivariate_goal === "distribution") {
       const df = String((tableRows - 1) * (tableCols - 1) || 1);
@@ -132,6 +135,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
         power: pwr,
         f: wMap[effectSizeBiv],
         chi2_df: df,
+        _fromTemplate: true,
       });
     }
   };

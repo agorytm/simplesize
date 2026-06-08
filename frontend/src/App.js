@@ -19,6 +19,7 @@ function App() {
   const [possibleTests, setPossibleTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [isLoadingLmm, setIsLoadingLmm] = useState(false);
+  const [designTouched, setDesignTouched] = useState(false);
 
   // Pour le pop-up conversion f -> d
   const [conversionInfo, setConversionInfo] = useState("");
@@ -205,20 +206,30 @@ function App() {
 
     // ----------- FONCTION SYNCHRO FORM <-> FACTEURS -----------
     const handleFormUpdate = (data) => {
-      // Met à jour les facteurs globaux (pour visualisation et export)
       if (data.interFactors) setInterFactors(data.interFactors);
       if (data.intraFactors) setIntraFactors(data.intraFactors);
       setFormData(data);
-        // Correction ici : on passe data.interFactors/data.intraFactors directement
+      // Detect user interaction: any named factor, any level, or from sentence template
+      const hasActivity =
+        data._fromTemplate ||
+        (data.interFactors || []).some(f => f.name?.trim() || f.levels?.length > 0) ||
+        (data.intraFactors  || []).some(f => f.name?.trim() || f.levels?.length > 0);
+      if (hasActivity) setDesignTouched(true);
       detectPossibleTests({
         ...data,
         interFactors: data.interFactors,
         intraFactors: data.intraFactors,
-      });
+      }, hasActivity || designTouched);
     };
 
-    // ----------- DÉTECTION TESTS POSSIBLES (100% local, pas d'appel réseau) -----------
-    const detectPossibleTests = (data) => {
+    // ----------- DÉTECTION TESTS POSSIBLES (design-based only) -----------
+    const detectPossibleTests = (data, touched) => {
+      // Design-based tests only appear when user has started defining a design
+      if (!touched) {
+        setPossibleTests([]);
+        return;
+      }
+
       const validInter = (data.interFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
       const validIntra = (data.intraFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
       const nInter = validInter.length;
@@ -227,47 +238,32 @@ function App() {
 
       let tests = [];
 
-      // Between-subjects only
       if (nInter >= 1 && nIntra === 0) {
         if (nCells === 2) tests.push("ttest");
         if (nInter === 1) tests.push("anova");
         else tests.push("anova_factorial");
       }
-
-      // Within-subjects only
       if (nIntra >= 1 && nInter === 0) {
         tests.push("anova_rm");
         tests.push("lmm");
       }
-
-      // Mixed
       if (nInter >= 1 && nIntra >= 1) {
         tests.push("anova_mixed");
         tests.push("lmm");
       }
-
-      // ttest_paired relevant for within-only with 2 levels
-      if (nIntra === 1 && validIntra[0].levels.length === 2 && nInter === 0) {
+      if (nIntra === 1 && validIntra[0]?.levels.length === 2 && nInter === 0) {
         tests.push("ttest_paired");
       }
-      // correlation/chi2/regression shown when no complex design
-      if (nInter === 0 && nIntra === 0) {
-        tests.push("correlation", "chi2", "regression");
-      }
-      // Always add these as fallback if no tests found yet
-      if (tests.length === 0) {
-        tests.push("ttest_paired", "correlation", "chi2", "regression");
-      }
 
-      // Deduplicate
       tests = [...new Set(tests)];
-
       setPossibleTests(tests);
-      if (tests.length > 0 && !selectedTest) {
-        setSelectedTest(tests[0]);
+      if (selectedTest && !['correlation','chi2','regression'].includes(selectedTest) && !tests.includes(selectedTest)) {
+        setSelectedTest(null);
       }
-      if (tests.length === 0) setSelectedTest(null);
     };
+
+    // Simple tests (correlation, chi2, regression) always available — no design needed
+    const simpleTests = ["correlation", "chi2", "regression"];
 
   // ----------- CALCUL DU TEST SÉLECTIONNÉ -----------
   const handleTestSelect = async (test) => {
@@ -313,8 +309,8 @@ function App() {
       factors,
       group_levels,
       level_levels,
-      interFactors: data.interFactors || interFactors,
-      intraFactors: data.intraFactors || intraFactors,
+      interFactors: interFactors,
+      intraFactors: intraFactors,
       selected_test: test
     };
 
@@ -513,29 +509,48 @@ const handleLmmLaunch = async () => {
     <div style={containerStyle}>
       {/* LEFT */}
       <div style={leftPanelStyle}>
-        <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 9 }}>
-          Select test
+        {/* ── Design-based tests ── */}
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "#2F344A" }}>
+          Based on your design
         </div>
-        {possibleTests.length === 0 && (
-          <div
-            style={{
-              fontSize: 14,
-              color: "#B0B8D4",
-              fontStyle: "italic",
-            }}
-          >
-            No possible test for this design
+        {possibleTests.length === 0 ? (
+          <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", marginBottom: 14, lineHeight: 1.4 }}>
+            Fill in the design on the right<br />to see which test applies.
           </div>
+        ) : (
+          possibleTests.map((test) => (
+            <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+              <button
+                style={testButtonStyle(selectedTest === test, false)}
+                onClick={() => handleTestSelect(test)}
+              >
+                {testLabels[test] || test.toUpperCase()}
+              </button>
+              {testInfos[test] && (
+                <span
+                  style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 19, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
+                  title="Information and assumptions"
+                  onClick={() => setInfoModal({ open: true, testKey: test })}
+                >
+                  i
+                </span>
+              )}
+            </div>
+          ))
         )}
-        {[...new Set(possibleTests)].map((test) => (
-          <div
-            key={test}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: 6,
-            }}
-          >
+
+        {/* ── Separator ── */}
+        <div style={{ borderTop: "1.5px solid #F0F3F7", margin: "14px 0 12px 0" }} />
+
+        {/* ── Direct analyses (no design needed) ── */}
+        <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: "#2F344A" }}>
+          Direct analyses
+        </div>
+        <div style={{ fontSize: 12, color: "#B0B8D4", marginBottom: 10, lineHeight: 1.4 }}>
+          Correlation · Chi-square · Regression — no groups or conditions required.
+        </div>
+        {simpleTests.map((test) => (
+          <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
             <button
               style={testButtonStyle(selectedTest === test, false)}
               onClick={() => handleTestSelect(test)}
@@ -544,21 +559,7 @@ const handleLmmLaunch = async () => {
             </button>
             {testInfos[test] && (
               <span
-                style={{
-                  marginLeft: 7,
-                  cursor: "pointer",
-                  color: "#55D1E3",
-                  fontSize: 19,
-                  fontWeight: 800,
-                  borderRadius: "50%",
-                  border: "1.2px solid #55D1E3",
-                  width: 22,
-                  height: 22,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "#fff",
-                }}
+                style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 19, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
                 title="Information and assumptions"
                 onClick={() => setInfoModal({ open: true, testKey: test })}
               >

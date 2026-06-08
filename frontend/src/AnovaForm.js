@@ -136,8 +136,8 @@ function AnovaForm({
     <form onSubmit={e => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 }}>
       <span style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Define the design</span>
 
-      {/* Show factor fields only for factorial designs */}
-      {!isSimpleTest && <>
+      {/* Factor design fields - always visible */}
+      {true && <>
         {interFactors.map((factor, idx) => (
           <div key={`inter-${idx}`} style={{ marginBottom: 10 }}>
             <label style={labelStyle}>{`Between-subject factor name ${idx + 1}`}</label>
