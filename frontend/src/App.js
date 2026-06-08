@@ -146,58 +146,46 @@ function App() {
       });
     };
 
-    // ----------- DÉTECTION TESTS POSSIBLES -----------
-    const detectPossibleTests = async (data) => {
-      // Prépare les infos de facteur pour le backend (nom et type)
-      const factors = {};
-    (data.interFactors || []).forEach((factor) => {
-      if (factor.name) factors[factor.name] = "between";
-    });
-    (data.intraFactors || []).forEach((factor) => {
-      if (factor.name) factors[factor.name] = "within";
-    });
-    const group_levels = (data.interFactors && data.interFactors[0]?.levels?.length > 0)
-      ? data.interFactors[0].levels : [];
-    const level_levels = (data.intraFactors && data.intraFactors[0]?.levels?.length > 0)
-      ? data.intraFactors[0].levels : [];
+    // ----------- DÉTECTION TESTS POSSIBLES (100% local, pas d'appel réseau) -----------
+    const detectPossibleTests = (data) => {
+      const validInter = (data.interFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
+      const validIntra = (data.intraFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
+      const nInter = validInter.length;
+      const nIntra = validIntra.length;
+      const nCells = validInter.reduce((acc, f) => acc * f.levels.length, 1);
 
+      let tests = [];
 
-      const payload = {
-        factors,
-        group_levels,
-        level_levels,
-        interFactors: data.interFactors || [],
-        intraFactors: data.intraFactors || []
-      };
+      // Between-subjects only
+      if (nInter >= 1 && nIntra === 0) {
+        if (nCells === 2) tests.push("ttest");
+        if (nInter === 1) tests.push("anova");
+        else tests.push("anova_factorial");
+      }
 
-      try {
-        const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/list_tests', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const out = await res.json();
-        let tests = out.possible_tests || [];
-        // Logique de filtrage custom (optionnel selon ton backend)
-        if (Object.values(factors).includes("between")) {
-          tests = tests.filter(test => test !== "anova_rm");
-        }
-        tests = tests.filter(test => test !== "lmm");
-        // NE PAS proposer anova_factorial si facteur intra présent
-        if (Object.values(factors).includes("within")) {
-        tests = tests.filter(test => test !== "anova_factorial");
-        }
-        // Ajoute LMM uniquement si au moins un facteur within
-        const hasWithin = Object.values(factors).includes("within");
-        if (hasWithin && (tests.includes("anova_mixed") || tests.includes("anova_rm"))) {
-          tests.push("lmm");
-        }
-        setPossibleTests(tests);
-        if (tests.length > 0 && !selectedTest) {
-          setSelectedTest(tests[0]);
-        }
-        if (tests.length === 0) setSelectedTest(null);
-      } catch { }
+      // Within-subjects only
+      if (nIntra >= 1 && nInter === 0) {
+        tests.push("anova_rm");
+        tests.push("lmm");
+      }
+
+      // Mixed
+      if (nInter >= 1 && nIntra >= 1) {
+        tests.push("anova_mixed");
+        tests.push("lmm");
+      }
+
+      // Always available
+      tests.push("ttest_paired", "correlation", "chi2", "regression");
+
+      // Deduplicate
+      tests = [...new Set(tests)];
+
+      setPossibleTests(tests);
+      if (tests.length > 0 && !selectedTest) {
+        setSelectedTest(tests[0]);
+      }
+      if (tests.length === 0) setSelectedTest(null);
     };
 
   // ----------- CALCUL DU TEST SÉLECTIONNÉ -----------
