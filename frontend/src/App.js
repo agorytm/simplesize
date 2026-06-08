@@ -39,7 +39,11 @@ function App() {
     anova_rm: "Repeated-measures ANOVA",
     anova_mixed: "Mixed ANOVA",
     lmm: "Linear Mixed Model (LMM)",
-    anova_factorial: "Factorial ANOVA"
+    anova_factorial: "Factorial ANOVA",
+    ttest_paired: "Paired t-test",
+    correlation: "Correlation (Pearson r)",
+    chi2: "Chi-square",
+    regression: "Regression"
   };
 
 
@@ -175,8 +179,18 @@ function App() {
         tests.push("lmm");
       }
 
-      // Always available
-      tests.push("ttest_paired", "correlation", "chi2", "regression");
+      // ttest_paired relevant for within-only with 2 levels
+      if (nIntra === 1 && validIntra[0].levels.length === 2 && nInter === 0) {
+        tests.push("ttest_paired");
+      }
+      // correlation/chi2/regression shown when no complex design
+      if (nInter === 0 && nIntra === 0) {
+        tests.push("correlation", "chi2", "regression");
+      }
+      // Always add these as fallback if no tests found yet
+      if (tests.length === 0) {
+        tests.push("ttest_paired", "correlation", "chi2", "regression");
+      }
 
       // Deduplicate
       tests = [...new Set(tests)];

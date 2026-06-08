@@ -34,7 +34,7 @@ ALLOWED_ORIGINS = os.environ.get(
     "CORS_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000"
 ).split(",")
-CORS(app, origins=[o.strip() for o in ALLOWED_ORIGINS],
+CORS(app, origins="*",
      methods=["GET", "POST", "OPTIONS"],
      allow_headers=["Content-Type"])
 
