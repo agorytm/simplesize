@@ -335,48 +335,48 @@ function App() {
     }
   };
 
-// ----------- LMM (BOUTON LANCEMENT) -----------
-const handleLmmLaunch = async () => {
-  setIsLoadingLmm(true);
-  setResult(null);
-  const factors = {};
-  interFactors.forEach((factor) => {
-    if (factor.name) factors[factor.name] = "between";
-  });
-  intraFactors.forEach((factor) => {
-    if (factor.name) factors[factor.name] = "within";
-  });
-  const group_levels = interFactors.length > 0 && interFactors[0].levels.length > 0
-    ? interFactors[0].levels : [];
-  const level_levels = intraFactors.length > 0 && intraFactors[0].levels.length > 0
-    ? intraFactors[0].levels : [];
-
-  const payload = {
-    alpha: parseFloat((formData.alpha || "0.05").replace(",", ".")),
-    power: parseFloat((formData.power || "0.8").replace(",", ".")),
-    f: parseFloat((formData.f || "0.25").replace(",", ".")),
-    factors,
-    group_levels,
-    level_levels,
-    interFactors,
-    intraFactors,
-    selected_test: "lmm",
-    random_factor: formData.randomFactor,
-    n_sim: formData.nSimulations || 50
-  };
-  try {
-    const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    setResult(data);
-  } catch {
+  // ----------- LMM (BOUTON LANCEMENT) -----------
+  const handleLmmLaunch = async () => {
+    setIsLoadingLmm(true);
     setResult(null);
-  }
-  setIsLoadingLmm(false);
-};
+    const factors = {};
+    interFactors.forEach((factor) => {
+      if (factor.name) factors[factor.name] = "between";
+    });
+    intraFactors.forEach((factor) => {
+      if (factor.name) factors[factor.name] = "within";
+    });
+    const group_levels = interFactors.length > 0 && interFactors[0].levels.length > 0
+      ? interFactors[0].levels : [];
+    const level_levels = intraFactors.length > 0 && intraFactors[0].levels.length > 0
+      ? intraFactors[0].levels : [];
+
+    const payload = {
+      alpha: parseFloat((formData.alpha || "0.05").replace(",", ".")),
+      power: parseFloat((formData.power || "0.8").replace(",", ".")),
+      f: parseFloat((formData.f || "0.25").replace(",", ".")),
+      factors,
+      group_levels,
+      level_levels,
+      interFactors,
+      intraFactors,
+      selected_test: "lmm",
+      random_factor: formData.randomFactor,
+      n_sim: formData.nSimulations || 50
+    };
+    try {
+      const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch {
+      setResult(null);
+    }
+    setIsLoadingLmm(false);
+  };
 
 
   // ----------- EXPORT JPEG VISUEL -----------
