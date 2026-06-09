@@ -475,7 +475,7 @@ function App() {
   }
 
   return (
-  <div>
+  <>
     <div className="app-title" style={{ marginBottom: 30 }}>
       <img
         src="/logo_simplesize.png"
@@ -719,7 +719,7 @@ function App() {
         />
       </div>
     )}
-      </div>
+      </>
   );
 }
 
