@@ -112,6 +112,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
         r: rMap[effectSizeBiv],
         f: "0.25",
         _fromTemplate: true,
+        _testType: "correlation",
       });
     } else if (bivariate_goal === "prediction") {
       onApply({
@@ -124,6 +125,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
         n_predictors: String(nPredictors),
         f: "0.25",
         _fromTemplate: true,
+        _testType: "regression",
       });
     } else if (bivariate_goal === "distribution") {
       const df = String((tableRows - 1) * (tableCols - 1) || 1);
@@ -136,6 +138,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
         f: wMap[effectSizeBiv],
         chi2_df: df,
         _fromTemplate: true,
+        _testType: "chi2",
       });
     }
   };
@@ -158,8 +161,8 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
 
       {/* Mode tabs */}
       <div style={{ marginBottom: 20 }}>
-        <button type="button" style={tabStyle(studyType === "experimental")} onClick={() => setStudyType("experimental")}>🔬 Experimental design</button>
-        <button type="button" style={tabStyle(studyType === "bivariate")} onClick={() => setStudyType("bivariate")}>📊 Variables &amp; relationships</button>
+        <button type="button" style={tabStyle(studyType === "experimental")} onClick={() => setStudyType("experimental")}>Experimental design</button>
+        <button type="button" style={tabStyle(studyType === "bivariate")} onClick={() => setStudyType("bivariate")}>Variables &amp; relationships</button>
       </div>
 
       {/* ─── EXPERIMENTAL DESIGN ─── */}
@@ -241,41 +244,54 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontWeight: 600, marginRight: 12 }}>What do you want to do?</label>
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              <label style={{ cursor: "pointer" }}>
-                <input type="radio" value="correlation" checked={bivariate_goal === "correlation"} onChange={() => setBivariateGoal("correlation")} style={{ marginRight: 8 }} />
-                <b>Explore a relationship</b> — I want to see if&nbsp;
-                <input value={var1} onChange={e => setVar1(e.target.value)} style={{ width: 70, margin: "0 4px" }} />
-                &nbsp;and&nbsp;
-                <input value={var2} onChange={e => setVar2(e.target.value)} style={{ width: 70, margin: "0 4px" }} />
-                &nbsp;are linked <span style={{ color: "#999", fontSize: 13 }}>(→ Pearson r)</span>
+              <label style={{ cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderRadius: 8, border: bivariate_goal === "correlation" ? "1.5px solid #55D1E3" : "1.5px solid #eee", background: bivariate_goal === "correlation" ? "#f0fbfd" : "#fff", marginBottom: 4 }}>
+                <input type="radio" value="correlation" checked={bivariate_goal === "correlation"} onChange={() => setBivariateGoal("correlation")} style={{ marginTop: 3 }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>Two numerical measurements — are they related?</div>
+                  <div style={{ color: "#778", fontSize: 13, marginTop: 2 }}>
+                    e.g. Does a higher score in&nbsp;
+                    <input value={var1} onChange={e => setVar1(e.target.value)} style={{ width: 65, margin: "0 3px", fontSize: 13 }} />
+                    &nbsp;go along with a higher score in&nbsp;
+                    <input value={var2} onChange={e => setVar2(e.target.value)} style={{ width: 65, margin: "0 3px", fontSize: 13 }} />
+                    ?
+                  </div>
+                </div>
               </label>
-              <label style={{ cursor: "pointer" }}>
-                <input type="radio" value="prediction" checked={bivariate_goal === "prediction"} onChange={() => setBivariateGoal("prediction")} style={{ marginRight: 8 }} />
-                <b>Predict an outcome</b> — I want to predict&nbsp;
-                <input value={outcomeVar} onChange={e => setOutcomeVar(e.target.value)} style={{ width: 70, margin: "0 4px" }} />
-                &nbsp;from&nbsp;
-                <select value={nPredictors} onChange={e => handleNPredictorsChange(Number(e.target.value))} style={{ marginRight: 4 }}>
-                  {[1,2,3,4,5,6,8,10].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                predictor{nPredictors > 1 ? "s" : ""} (
-                {predictorNames.map((name, idx) => (
-                  <input key={idx} value={name} onChange={e => { const a=[...predictorNames];a[idx]=e.target.value;setPredictorNames(a); }}
-                    style={{ width: 50, margin: "0 3px" }} />
-                ))}) <span style={{ color: "#999", fontSize: 13 }}>(→ Regression)</span>
+              <label style={{ cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderRadius: 8, border: bivariate_goal === "prediction" ? "1.5px solid #55D1E3" : "1.5px solid #eee", background: bivariate_goal === "prediction" ? "#f0fbfd" : "#fff", marginBottom: 4 }}>
+                <input type="radio" value="prediction" checked={bivariate_goal === "prediction"} onChange={() => setBivariateGoal("prediction")} style={{ marginTop: 3 }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>Predict a score from other variables</div>
+                  <div style={{ color: "#778", fontSize: 13, marginTop: 2 }}>
+                    e.g. Can I predict&nbsp;
+                    <input value={outcomeVar} onChange={e => setOutcomeVar(e.target.value)} style={{ width: 65, margin: "0 3px", fontSize: 13 }} />
+                    &nbsp;from&nbsp;
+                    <select value={nPredictors} onChange={e => handleNPredictorsChange(Number(e.target.value))} style={{ marginRight: 4, fontSize: 13 }}>
+                      {[1,2,3,4,5,6,8,10].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    variable{nPredictors > 1 ? "s" : ""} (
+                    {predictorNames.map((name, idx) => (
+                      <input key={idx} value={name} onChange={e => { const a=[...predictorNames];a[idx]=e.target.value;setPredictorNames(a); }}
+                        style={{ width: 45, margin: "0 3px", fontSize: 13 }} />
+                    ))})&nbsp;?
+                  </div>
+                </div>
               </label>
-              <label style={{ cursor: "pointer" }}>
-                <input type="radio" value="distribution" checked={bivariate_goal === "distribution"} onChange={() => setBivariateGoal("distribution")} style={{ marginRight: 8 }} />
-                <b>Compare distributions</b> — I want to test if&nbsp;
-                <input value={catVar} onChange={e => setCatVar(e.target.value)} style={{ width: 80, margin: "0 4px" }} />
-                &nbsp;differs across categories (
-                <select value={tableRows} onChange={e => setTableRows(Number(e.target.value))}>
-                  {[2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                ×
-                <select value={tableCols} onChange={e => setTableCols(Number(e.target.value))}>
-                  {[2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                table) <span style={{ color: "#999", fontSize: 13 }}>(→ Chi-square)</span>
+              <label style={{ cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderRadius: 8, border: bivariate_goal === "distribution" ? "1.5px solid #55D1E3" : "1.5px solid #eee", background: bivariate_goal === "distribution" ? "#f0fbfd" : "#fff", marginBottom: 4 }}>
+                <input type="radio" value="distribution" checked={bivariate_goal === "distribution"} onChange={() => setBivariateGoal("distribution")} style={{ marginTop: 3 }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>Compare percentages or proportions between groups</div>
+                  <div style={{ color: "#778", fontSize: 13, marginTop: 2 }}>
+                    e.g. Is there a difference between&nbsp;
+                    <select value={tableRows} onChange={e => setTableRows(Number(e.target.value))} style={{ fontSize: 13 }}>
+                      {[2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    &nbsp;groups in how they distribute across&nbsp;
+                    <select value={tableCols} onChange={e => setTableCols(Number(e.target.value))} style={{ fontSize: 13 }}>
+                      {[2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    &nbsp;categories? (e.g. men vs women choosing A, B or C)
+                  </div>
+                </div>
               </label>
             </div>
           </div>

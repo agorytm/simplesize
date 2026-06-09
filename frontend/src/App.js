@@ -713,6 +713,12 @@ function App() {
           onApply={(data) => {
             setSentenceModalOpen(false);
             handleFormUpdate(data);
+            // If template specifies a direct test, switch to variables mode and auto-select
+            if (data._testType) {
+              setDesignMode("variables");
+              setVariablesTest(data._testType);
+              setSelectedTest(data._testType);
+            }
           }}
           onCancel={() => setSentenceModalOpen(false)}
         />
