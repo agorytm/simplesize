@@ -565,7 +565,6 @@ function App() {
           )
         )}
       </div>
-      </div>
 
       {/* CENTER */}
       <div style={centerPanelStyle} ref={centerPanelRef}>
