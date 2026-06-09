@@ -150,10 +150,10 @@ function AnovaForm({
 
       {/* DESIGN MODE TABS */}
       <div style={tabBarStyle}>
-        <button type="button" style={tabBtnStyle(designTab === "experimental")} onClick={() => setDesignTab("experimental")}>
+        <button type="button" style={tabBtnStyle(designTab === "experimental")} onClick={() => { setDesignTab("experimental"); setVarType(null); }}>
           {fr ? "Design expérimental" : "Experimental design"}
         </button>
-        <button type="button" style={tabBtnStyle(designTab === "variables")} onClick={() => setDesignTab("variables")}>
+        <button type="button" style={tabBtnStyle(designTab === "variables")} onClick={() => { setDesignTab("variables"); }}>
           {fr ? "Variables & relations" : "Variables & relations"}
         </button>
       </div>

@@ -617,7 +617,7 @@ function HomePage() {
           selectedTest={selectedTest} onLmmLaunch={handleLmmLaunch}
           isLoadingLmm={isLoadingLmm} interFactors={interFactors} intraFactors={intraFactors}
           onRun={() => { const test = designMode === "variables" ? variablesTest : selectedTest; if (test && test !== "lmm") handleTestSelect(test); }}
-          onDesignModeChange={mode => setDesignMode(mode)}
+          onDesignModeChange={mode => { setDesignMode(mode); setSelectedTest(null); setResult(null); if (mode === "experimental") setVariablesTest(null); }}
           onOpenTemplate={() => setSentenceModalOpen(true)}
           onVariablesTestChange={test => { setVariablesTest(test); if (test) setSelectedTest(test); }}
         />
