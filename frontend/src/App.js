@@ -568,29 +568,34 @@ function App() {
 
       {/* CENTER */}
       <div style={centerPanelStyle} ref={centerPanelRef}>
-        {(result?.n_per_group != null) && (
-          <>
-            <DesignVisualizer
-              groupFactors={interFactors}
-              levelFactors={intraFactors}
-              selectedTest={selectedTest}
-              testTitle={testTitle}
-              nPerGroup={result?.n_per_group}
-              formData={formData}
-              result={result}
-            />
 
+        {/* Design always visible once a test is selected */}
+        {selectedTest && (
+          <DesignVisualizer
+            groupFactors={interFactors}
+            levelFactors={intraFactors}
+            selectedTest={selectedTest}
+            testTitle={testTitle}
+            nPerGroup={result?.n_per_group ?? null}
+            formData={formData}
+            result={result}
+          />
+        )}
+
+        {/* Results appear after calculation */}
+        {result?.n_per_group != null && (
+          <>
             {selectedTest === "lmm" && result?.estimated_power != null && (
               <div style={{ margin: "10px 0 6px 0", background: "#f0f8ff", border: "1px solid #b3d8f0", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#334" }}>
                 <div style={{ fontWeight: 700, marginBottom: 4, color: "#1a6a9a" }}>
-                  Résultat simulation LMM
+                  LMM simulation result
                 </div>
                 <div>
-                  <b>N par groupe :</b> {result.n_per_group}
+                  <b>N per group:</b> {result.n_per_group}
                   &nbsp;·&nbsp;
-                  <b>Puissance simulée :</b> {Math.round(result.estimated_power * 100)}%
+                  <b>Simulated power:</b> {Math.round(result.estimated_power * 100)}%
                   &nbsp;·&nbsp;
-                  <b>Simulations :</b> {result.n_sim} ({result.converged} convergées)
+                  <b>Simulations:</b> {result.n_sim} ({result.converged} converged)
                 </div>
                 {result.message && (
                   <div style={{ marginTop: 5, color: "#555", fontStyle: "italic" }}>{result.message}</div>
@@ -602,6 +607,13 @@ function App() {
               Export
             </button>
           </>
+        )}
+
+        {/* Placeholder when no test selected */}
+        {!selectedTest && (
+          <div style={{ color: "#C8D0E7", fontSize: 15, fontStyle: "italic", marginTop: 40, textAlign: "center", lineHeight: 1.8 }}>
+            Define your design on the right<br />and select a test to visualize it here.
+          </div>
         )}
 
       </div>
