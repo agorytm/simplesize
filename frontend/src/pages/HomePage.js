@@ -510,7 +510,7 @@ function HomePage() {
     maxWidth: 1100, margin: '16px auto', background: '#fff', borderRadius: 24,
     boxShadow: '0 4px 32px #55D1E312', padding: 26, minHeight: 580
   };
-  const colStyle = { display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 };
+  const colStyle = { display: 'flex', flexDirection: 'column', minWidth: 0 };
   const leftPanelStyle  = { ...colStyle, borderRight: '1.5px solid #F4F6F8', paddingRight: 16, alignItems: 'flex-start' };
   const centerPanelStyle = { ...colStyle, alignItems: 'center', justifyContent: 'flex-start', padding: '0 12px', paddingTop: 8 };
   const rightPanelStyle  = { ...colStyle, borderLeft: '1.5px solid #F4F6F8', paddingLeft: 16 };
@@ -643,32 +643,6 @@ function HomePage() {
     )
   );
 
-  const Modals = () => (
-    <>
-      {infoModal.open && testInfos[infoModal.testKey] && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: '16px', boxSizing: 'border-box' }}>
-          <div style={{ background: "#fff", borderRadius: 17, padding: "28px 24px 20px 24px", width: '100%', maxWidth: 440, boxShadow: "0 2px 24px #2f344a33", position: "relative" }}>
-            <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 15, color: "#2F344A", paddingRight: 24 }}>{testInfos[infoModal.testKey].title}</div>
-            <div style={{ fontSize: 15, color: "#344", lineHeight: 1.5 }}>{testInfos[infoModal.testKey].content}</div>
-            <button onClick={() => setInfoModal({ open: false, testKey: null })} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", fontWeight: 800, fontSize: 18, color: "#B0B8D4", cursor: "pointer" }}>×</button>
-          </div>
-        </div>
-      )}
-      {sentenceModalOpen && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 900, overflowY: "auto", padding: isMobile ? "56px 0 16px" : "40px 16px", boxSizing: "border-box" }}>
-          <PlanSentenceFiller
-            formData={formData}
-            onApply={(data) => {
-              setSentenceModalOpen(false);
-              handleFormUpdate(data);
-              if (data._testType) { setDesignMode("variables"); setVariablesTest(data._testType); setSelectedTest(data._testType); }
-            }}
-            onCancel={() => setSentenceModalOpen(false)}
-          />
-        </div>
-      )}
-    </>
-  );
 
   // ============================================================
   //  MOBILE LAYOUT
@@ -683,7 +657,7 @@ function HomePage() {
 
     return (
       <>
-        <div style={{ background: '#fff', borderRadius: 16, margin: '10px 10px 24px', boxShadow: '0 4px 20px #55D1E312', overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: 16, margin: '10px 10px 24px', boxShadow: '0 4px 20px #55D1E312' }}>
           {/* Mobile tab bar */}
           <div style={{ display: 'flex', borderBottom: '2px solid #F0F3F8', background: '#fafbfc', position: 'sticky', top: 56, zIndex: 50 }}>
             {tabs.map(tab => (
@@ -733,7 +707,29 @@ function HomePage() {
             )}
           </div>
         </div>
-        <Modals />
+
+      {infoModal.open && testInfos[infoModal.testKey] && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: '16px', boxSizing: 'border-box' }}>
+          <div style={{ background: "#fff", borderRadius: 17, padding: "28px 24px 20px 24px", width: '100%', maxWidth: 440, boxShadow: "0 2px 24px #2f344a33", position: "relative" }}>
+            <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 15, color: "#2F344A", paddingRight: 24 }}>{testInfos[infoModal.testKey].title}</div>
+            <div style={{ fontSize: 15, color: "#344", lineHeight: 1.5 }}>{testInfos[infoModal.testKey].content}</div>
+            <button onClick={() => setInfoModal({ open: false, testKey: null })} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", fontWeight: 800, fontSize: 18, color: "#B0B8D4", cursor: "pointer" }}>×</button>
+          </div>
+        </div>
+      )}
+      {sentenceModalOpen && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 9999, overflowY: "auto", padding: isMobile ? "56px 0 16px" : "40px 16px", boxSizing: "border-box" }}>
+          <PlanSentenceFiller
+            formData={formData}
+            onApply={(data) => {
+              setSentenceModalOpen(false);
+              handleFormUpdate(data);
+              if (data._testType) { setDesignMode("variables"); setVariablesTest(data._testType); setSelectedTest(data._testType); }
+            }}
+            onCancel={() => setSentenceModalOpen(false)}
+          />
+        </div>
+      )}
       </>
     );
   }
@@ -770,7 +766,28 @@ function HomePage() {
       </div>
     </div>
 
-    <Modals />
+      {infoModal.open && testInfos[infoModal.testKey] && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: '16px', boxSizing: 'border-box' }}>
+          <div style={{ background: "#fff", borderRadius: 17, padding: "28px 24px 20px 24px", width: '100%', maxWidth: 440, boxShadow: "0 2px 24px #2f344a33", position: "relative" }}>
+            <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 15, color: "#2F344A", paddingRight: 24 }}>{testInfos[infoModal.testKey].title}</div>
+            <div style={{ fontSize: 15, color: "#344", lineHeight: 1.5 }}>{testInfos[infoModal.testKey].content}</div>
+            <button onClick={() => setInfoModal({ open: false, testKey: null })} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", fontWeight: 800, fontSize: 18, color: "#B0B8D4", cursor: "pointer" }}>×</button>
+          </div>
+        </div>
+      )}
+      {sentenceModalOpen && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 9999, overflowY: "auto", padding: isMobile ? "56px 0 16px" : "40px 16px", boxSizing: "border-box" }}>
+          <PlanSentenceFiller
+            formData={formData}
+            onApply={(data) => {
+              setSentenceModalOpen(false);
+              handleFormUpdate(data);
+              if (data._testType) { setDesignMode("variables"); setVariablesTest(data._testType); setSelectedTest(data._testType); }
+            }}
+            onCancel={() => setSentenceModalOpen(false)}
+          />
+        </div>
+      )}
   </>
   );
 }
