@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 
 const TEAM = [
   {
-    name: "Benjamin Lesur",
+    name: "Fondateur",
     role_en: "Founder & Developer",
     role_fr: "Fondateur & Développeur",
-    bio_en: "Creator of SimpleSize and president of Agorytm SAS. Passionate about making statistical tools accessible to students.",
-    bio_fr: "Créateur de SimpleSize et président d'Agorytm SAS. Passionné par l'accessibilité des outils statistiques pour les étudiants.",
+    bio_en: "Creator of SimpleSize & Agorytm SAS. Passionate about making statistical tools accessible to students.",
+    bio_fr: "Créateur de SimpleSize & Agorytm SAS. Passionné par l'accessibilité des outils statistiques pour les étudiants.",
     avatar: null,
   },
   {
@@ -49,8 +49,8 @@ export default function AboutPage() {
         <h2 style={h2}>{fr ? 'Notre mission' : 'Our mission'}</h2>
         <p style={para}>
           {fr
-            ? `SimpleSize est né d'un constat simple : les étudiants en licence et master ont besoin de calculer la taille d'échantillon de leur étude, mais G*Power est opaque, technique, et intimidant. SimpleSize propose une alternative pédagogique : l'étudiant décrit son design, l'application propose les bons tests statistiques, et le calcul lui donne le N dont il a besoin.`
-            : `SimpleSize was born from a simple observation: undergraduate and graduate students need to calculate their study's sample size, but G*Power is opaque, technical, and intimidating. SimpleSize offers a pedagogical alternative: the student describes their design, the app proposes the right statistical tests, and the calculation gives them the N they need.`}
+            ? `SimpleSize est né d'un constat simple : les étudiants ont besoin de calculer la taille d'échantillon de leur étude, mais G*Power est opaque, technique, et intimidant. SimpleSize propose une alternative pédagogique : l'étudiant décrit son design, l'application propose les bons tests statistiques, et le calcul lui donne le N dont il a besoin.`
+            : `SimpleSize was born from a simple observation: students need to calculate their study's sample size, but G*Power is opaque, technical, and intimidating. SimpleSize offers a pedagogical alternative: the student describes their design, the app proposes the right statistical tests, and the calculation gives them the N they need.`}
         </p>
       </div>
 

@@ -24,6 +24,7 @@ function HomePage() {
   const [showConversionInfo, setShowConversionInfo] = useState(false);
   const [infoModal, setInfoModal] = useState({ open: false, testKey: null });
   const [sentenceModalOpen, setSentenceModalOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   React.useEffect(() => {
     const raw = sessionStorage.getItem('ss_gallery_load');
@@ -39,6 +40,21 @@ function HomePage() {
       if (gt) { setSelectedTest(gt); }
     } catch(e) { console.error(e); }
   }, []);
+
+  const handleReset = () => {
+    setInterFactors([{ name: '', levels: [] }]);
+    setIntraFactors([{ name: '', levels: [] }]);
+    setFormData({ alpha: "0.05", power: "0.8", f: "0.25" });
+    setResult(null);
+    setPossibleTests([]);
+    setSelectedTest(null);
+    setDesignTouched(false);
+    setDesignMode("experimental");
+    setVariablesTest(null);
+    setConversionInfo("");
+    setShowConversionInfo(false);
+    setResetKey(k => k + 1);
+  };
 
   const centerPanelRef = useRef(null);
   const exportAreaRef  = useRef(null);   // viz + results, cropped tight
@@ -498,6 +514,15 @@ function HomePage() {
         <div style={{ fontWeight: 600, fontSize: 14, color: "#8A93B2", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
           {fr ? "Tests proposés" : "Proposed tests"}
         </div>
+        {(selectedTest || possibleTests.length > 0 || designTouched) && (
+          <button onClick={handleReset} style={{
+            background: 'none', border: 'none', color: '#B0B8D4',
+            fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '2px 0 10px',
+            textDecoration: 'underline', alignSelf: 'flex-start',
+          }}>
+            {fr ? "réinitialiser" : "reset"}
+          </button>
+        )}
 
         {designMode === "experimental" && (
           possibleTests.length === 0 ? (
@@ -612,6 +637,7 @@ function HomePage() {
       {/* RIGHT */}
       <div style={rightPanelStyle}>
         <AnovaForm
+          key={resetKey}
           formData={formData} onUpdate={handleFormUpdate}
           conversionInfo={conversionInfo} showConversionInfo={showConversionInfo}
           selectedTest={selectedTest} onLmmLaunch={handleLmmLaunch}

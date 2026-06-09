@@ -62,6 +62,11 @@ const TERMS = [
     en: { term: "Linear Mixed Model (LMM)", short: "A flexible model for complex designs with random effects.", body: "LMMs handle situations where observations aren't fully independent — e.g., students nested within classrooms, repeated measures over time, or any design with a random grouping variable. They require more complex power estimation (usually Monte Carlo simulation), which SimpleSize does automatically." },
     fr: { term: "Modèle Linéaire Mixte (MLM / LMM)", short: "Un modèle flexible pour les designs complexes avec effets aléatoires.", body: "Les LMM gèrent les situations où les observations ne sont pas totalement indépendantes — ex. élèves nichés dans des classes, mesures répétées dans le temps, ou tout design avec une variable de regroupement aléatoire. Ils nécessitent une estimation de puissance plus complexe (souvent par simulation Monte Carlo), que SimpleSize fait automatiquement." }
   },
+  {
+    key: "mde",
+    en: { term: "Minimum Detectable Effect (MDE)", short: "The smallest effect your study can reliably detect given your sample size.", body: "If you already have a fixed N (e.g. limited by budget or availability), SimpleSize can calculate the smallest effect you could detect with that N. This is useful to check feasibility: if your MDE is very large (e.g. d > 0.8), your study may be underpowered for realistic effects. Access it via the 'I already have a sample size' checkbox in the calculator." },
+    fr: { term: "Effet minimum détectable (MDE)", short: "Le plus petit effet que votre étude peut détecter de façon fiable avec votre taille d'échantillon.", body: "Si vous avez déjà un N fixé (ex. limité par le budget ou la disponibilité), SimpleSize peut calculer le plus petit effet que vous pourriez détecter avec ce N. C'est utile pour tester la faisabilité : si votre MDE est très grand (ex. d > 0,8), votre étude risque d'être sous-puissante pour des effets réalistes. Accessible via la case 'J\'ai déjà une taille d\'échantillon' dans le calculateur." }
+  },
 ];
 
 export default function LexiquePage() {
@@ -76,8 +81,8 @@ export default function LexiquePage() {
       </h1>
       <p style={{ color: '#8A93B2', fontSize: 15, marginBottom: 36, marginTop: 0 }}>
         {fr
-          ? 'Les termes clés expliqués simplement pour les étudiants en licence.'
-          : 'Key terms explained simply for undergraduate students.'}
+          ? 'Les termes clés expliqués simplement pour les étudiants.'
+          : 'Key terms explained simply for students.'}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {TERMS.map(({ key, en, fr: frData }) => {

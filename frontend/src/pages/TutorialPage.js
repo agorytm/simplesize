@@ -124,7 +124,7 @@ const FAQ_EN = [
   { q: "What's the difference between between- and within-subjects factors?", a: "Between-subjects: different people in each group. Within-subjects (repeated measures): same people in all conditions. Within-subjects designs need fewer participants because each person serves as their own control." },
   { q: "When should I use LMM instead of ANOVA?", a: "Use LMM when your data has a hierarchical or clustered structure (e.g., students in classrooms, repeated measures over many time points, partially crossed designs). If basic ANOVA applies, use that — LMM power estimation requires simulation and is less precise." },
   { q: "The required N seems very large. What can I do?", a: "Try increasing the expected effect size (only if justified by literature), increasing alpha (e.g. 0.10 for exploratory studies), or reducing power (0.70 instead of 0.80). Always justify your choices in your methods section." },
-  { q: "Can I use SimpleSize for my thesis?", a: "Yes. SimpleSize uses validated methods (pwr package formulas + Monte Carlo for LMM). Cite it as: Lesur, B. (2025). SimpleSize [Web application]. Agorytm SAS. https://simplesize.science" },
+  { q: "Can I use SimpleSize for my thesis?", a: "Yes. SimpleSize uses validated methods (pwr package formulas + Monte Carlo for LMM). Cite it as: Agorytm SAS. (2025). SimpleSize [Web application]. https://simplesize.science" },
 ];
 
 const FAQ_FR = [
@@ -133,7 +133,7 @@ const FAQ_FR = [
   { q: "Quelle différence entre facteur inter- et intra-sujets ?", a: "Inter-sujets : des personnes différentes dans chaque groupe. Intra-sujets (mesures répétées) : les mêmes personnes dans toutes les conditions. Les plans intra-sujets nécessitent moins de participants car chaque personne sert de son propre témoin." },
   { q: "Quand utiliser un LMM plutôt qu'une ANOVA ?", a: "Utilisez un LMM quand vos données ont une structure hiérarchique (ex. élèves dans des classes, mesures répétées sur de nombreux points temporels, plans partiellement croisés). Si une ANOVA basique convient, utilisez-la — le calcul de puissance LMM requiert une simulation et est moins précis." },
   { q: "Le N requis semble très grand. Que faire ?", a: "Essayez d'augmenter la taille d'effet attendue (uniquement si justifié par la littérature), d'augmenter l'alpha (ex. 0,10 pour des études exploratoires), ou de réduire la puissance (0,70 au lieu de 0,80). Justifiez toujours vos choix dans la section méthode." },
-  { q: "Puis-je utiliser SimpleSize pour mon mémoire ?", a: "Oui. SimpleSize utilise des méthodes validées (formules du package pwr + Monte Carlo pour les LMM). Citez-le ainsi : Lesur, B. (2025). SimpleSize [Application web]. Agorytm SAS. https://simplesize.science" },
+  { q: "Puis-je utiliser SimpleSize pour mon mémoire ?", a: "Oui. SimpleSize utilise des méthodes validées (formules du package pwr + Monte Carlo pour les LMM). Citez-le ainsi : Agorytm SAS. (2025). SimpleSize [Application web]. https://simplesize.science" },
 ];
 
 /* ── Main page ──────────────────────────────────────────── */
@@ -340,6 +340,36 @@ export default function TutorialPage() {
           </div>
         }
         video_placeholder={true}
+      />
+
+
+      {/* Step 7 — MDE */}
+      <Step number={7}
+        title={fr ? "Bonus : j'ai déjà un N — quel effet puis-je détecter ?" : "Bonus: I already have an N — what effect can I detect?"}
+        body={fr
+          ? <><p style={{margin:'0 0 10px'}}>Si votre taille d'échantillon est déjà fixée (budget, disponibilité…), SimpleSize peut calculer l'<strong>effet minimum détectable (MDE)</strong> : le plus petit effet que votre étude peut raisonnablement trouver.</p>
+              <ul style={{margin:'0 0 10px',paddingLeft:20,lineHeight:1.9}}>
+                <li>Cochez <strong>«&#8239;J'ai déjà une taille d'échantillon&#8239;»</strong> en bas du panneau de design.</li>
+                <li>Entrez votre N par groupe.</li>
+                <li>Le MDE s'affiche automatiquement.</li>
+              </ul>
+              <p style={{margin:0}}>Si le MDE est très grand (ex. d &gt; 0,8), votre étude risque d'être sous-puissante pour des effets réalistes. C'est un signal pour recruter davantage ou revoir le design.</p></>
+          : <><p style={{margin:'0 0 10px'}}>If your sample size is already fixed (budget, availability…), SimpleSize can calculate the <strong>minimum detectable effect (MDE)</strong>: the smallest effect your study can realistically find.</p>
+              <ul style={{margin:'0 0 10px',paddingLeft:20,lineHeight:1.9}}>
+                <li>Check <strong>"I already have a sample size"</strong> at the bottom of the design panel.</li>
+                <li>Enter your N per group.</li>
+                <li>The MDE is displayed automatically.</li>
+              </ul>
+              <p style={{margin:0}}>If the MDE is very large (e.g. d &gt; 0.8), your study may be underpowered for realistic effects — a signal to recruit more or redesign.</p></>
+        }
+        mockup={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <MockInput label={fr ? "N par groupe" : "N per group"} value="30" />
+            <div style={{ background: '#e7f8ed', border: '1.5px solid #45b688', borderRadius: 8, padding: '8px 12px', fontSize: 13, fontWeight: 700, color: '#216747' }}>
+              MDE : {fr ? "d" : "d"} = 0.73
+            </div>
+          </div>
+        }
       />
 
       {/* Examples link */}
