@@ -1,0 +1,61 @@
+{
+  "nav": {
+    "calculator": "Calculator",
+    "tutorial": "Tutorial",
+    "community": "Community",
+    "glossary": "Glossary",
+    "examples": "Examples",
+    "about": "About",
+    "donate": "Support us",
+    "changelog": "Changelog"
+  },
+  "pages": {
+    "tutorial": "Tutorial",
+    "about": "About",
+    "community": "Community",
+    "glossary": "Glossary",
+    "examples": "Examples",
+    "donate": "Support SimpleSize",
+    "changelog": "Changelog"
+  },
+  "community": {
+    "title": "Community Studies",
+    "subtitle": "Studies designed by students using SimpleSize",
+    "share_yours": "Share your study",
+    "pending": "Awaiting moderation",
+    "no_posts": "No studies yet. Be the first to share yours!",
+    "card_theory": "Introduction",
+    "card_design": "Design",
+    "card_hypotheses": "Hypotheses",
+    "card_results": "Results",
+    "share": "Share",
+    "download": "Download card",
+    "copied": "Link copied!",
+    "form_title": "Share your study",
+    "form_subtitle": "Tell us about your study in a few words. We'll review it before publishing.",
+    "field_title": "Study title",
+    "field_author": "Your name",
+    "field_institution": "Institution (optional)",
+    "field_email": "Email (not published)",
+    "field_theory": "Introduction / Theory",
+    "field_design": "Study design",
+    "field_hypotheses": "Hypotheses",
+    "field_results": "Results / Expected N",
+    "field_photo": "Add a figure or photo (optional)",
+    "import_session": "Import design from my current session",
+    "words": "words",
+    "max_words": "max",
+    "submit": "Submit for review",
+    "submitting": "Submitting...",
+    "submitted_ok": "Submitted! We'll review it soon.",
+    "submitted_error": "Error. Please try again."
+  },
+  "donate": {
+    "title": "Support SimpleSize",
+    "subtitle": "SimpleSize is free, open, and built by one person.\nYour support helps keep it running and improving.",
+    "why": "Why donate?",
+    "reasons": ["Keep the servers running (Railway + Vercel)", "Improve statistical methods and add new tests", "Build better pedagogy for students worldwide", "Translate SimpleSize into more languages"],
+    "button": "Support on Buy Me a Coffee",
+    "thanks": "Thank you for using SimpleSize."
+  }
+}

@@ -6,6 +6,7 @@ function AnovaForm({
   intraFactors: externalIntraFactors = null,
   onDesignModeChange,
   onVariablesTestChange,
+  onOpenTemplate,
 }) {
   const [interFactors, setInterFactors] = useState(externalInterFactors || [{ name: '', levels: [] }]);
   const [intraFactors, setIntraFactors] = useState(externalIntraFactors || [{ name: '', levels: [] }]);
@@ -174,6 +175,36 @@ function AnovaForm({
 
   return (
     <form onSubmit={e => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 }}>
+
+      {/* SENTENCE TEMPLATE BUTTON */}
+      {onOpenTemplate && (
+        <button
+          type="button"
+          onClick={onOpenTemplate}
+          style={{
+            width: '100%',
+            marginBottom: 12,
+            background: '#fff6da',
+            border: '1.5px solid #FBC02D',
+            color: '#B4880A',
+            borderRadius: 10,
+            fontWeight: 700,
+            fontSize: 13,
+            padding: '8px 14px',
+            cursor: 'pointer',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>&#128221;</span>
+          Sentence template
+          <span style={{ fontSize: 11, fontWeight: 400, color: '#c8960a', marginLeft: 'auto' }}>
+            Fill the form with a sentence
+          </span>
+        </button>
+      )}
 
       {/* DESIGN MODE TABS */}
       <div style={tabBarStyle}>

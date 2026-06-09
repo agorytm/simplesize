@@ -1,0 +1,61 @@
+{
+  "nav": {
+    "calculator": "Calculateur",
+    "tutorial": "Tutoriel",
+    "community": "Communauté",
+    "glossary": "Glossaire",
+    "examples": "Exemples",
+    "about": "À propos",
+    "donate": "Nous soutenir",
+    "changelog": "Nouveautés"
+  },
+  "pages": {
+    "tutorial": "Tutoriel",
+    "about": "À propos",
+    "community": "Communauté",
+    "glossary": "Glossaire",
+    "examples": "Exemples",
+    "donate": "Soutenir SimpleSize",
+    "changelog": "Nouveautés"
+  },
+  "community": {
+    "title": "Études de la communauté",
+    "subtitle": "Des études conçues par des étudiants avec SimpleSize",
+    "share_yours": "Partager mon étude",
+    "pending": "En attente de modération",
+    "no_posts": "Aucune étude pour l'instant. Soyez le premier à partager la vôtre !",
+    "card_theory": "Introduction",
+    "card_design": "Design",
+    "card_hypotheses": "Hypothèses",
+    "card_results": "Résultats",
+    "share": "Partager",
+    "download": "Télécharger la carte",
+    "copied": "Lien copié !",
+    "form_title": "Partagez votre étude",
+    "form_subtitle": "Racontez votre étude en quelques mots. Nous la relisons avant publication.",
+    "field_title": "Titre de l'étude",
+    "field_author": "Votre nom",
+    "field_institution": "Établissement (optionnel)",
+    "field_email": "Email (non publié)",
+    "field_theory": "Introduction / Théorie",
+    "field_design": "Design de l'étude",
+    "field_hypotheses": "Hypothèses",
+    "field_results": "Résultats / N attendu",
+    "field_photo": "Ajouter une figure ou photo (optionnel)",
+    "import_session": "Importer le design de ma session actuelle",
+    "words": "mots",
+    "max_words": "max",
+    "submit": "Soumettre pour relecture",
+    "submitting": "Envoi en cours...",
+    "submitted_ok": "Envoyé ! Nous le relisons bientôt.",
+    "submitted_error": "Erreur. Veuillez réessayer."
+  },
+  "donate": {
+    "title": "Soutenir SimpleSize",
+    "subtitle": "SimpleSize est gratuit, ouvert, et construit par une seule personne.\nVotre soutien aide à le faire tourner et à l'améliorer.",
+    "why": "Pourquoi donner ?",
+    "reasons": ["Maintenir les serveurs en ligne (Railway + Vercel)", "Améliorer les méthodes statistiques et ajouter de nouveaux tests", "Développer la pédagogie pour les étudiants", "Traduire SimpleSize dans d'autres langues"],
+    "button": "Soutenir sur Buy Me a Coffee",
+    "thanks": "Merci d'utiliser SimpleSize."
+  }
+}
