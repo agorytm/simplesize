@@ -4,37 +4,27 @@ import DesignVisualizer from '../DesignVisualizer';
 import { toJpeg } from 'html-to-image';
 import '../SimpleSize.css';
 import PlanSentenceFiller from '../PlanSentenceFiller';
+import { useTranslation } from 'react-i18next';
 
 function HomePage() {
-  // États pour facteurs dynamiques (max 2 inter et 2 intra)
+  const { i18n } = useTranslation();
+  const fr = i18n.language === 'fr';
+
   const [interFactors, setInterFactors] = useState([{ name: '', levels: [] }]);
   const [intraFactors, setIntraFactors] = useState([{ name: '', levels: [] }]);
-  const [formData, setFormData] = useState({
-    alpha: "0.05",
-    power: "0.8",
-    f: "0.25"
-  });
-
+  const [formData, setFormData] = useState({ alpha: "0.05", power: "0.8", f: "0.25" });
   const [result, setResult] = useState(null);
   const [possibleTests, setPossibleTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [isLoadingLmm, setIsLoadingLmm] = useState(false);
   const [designTouched, setDesignTouched] = useState(false);
-  const [designMode, setDesignMode] = useState("experimental"); // "experimental" | "variables"
-  const [variablesTest, setVariablesTest] = useState(null); // "correlation" | "regression" | "chi2" | null
-
-  // Pour le pop-up conversion f -> d
+  const [designMode, setDesignMode] = useState("experimental");
+  const [variablesTest, setVariablesTest] = useState(null);
   const [conversionInfo, setConversionInfo] = useState("");
   const [showConversionInfo, setShowConversionInfo] = useState(false);
-
-  // Pour la modale info test
   const [infoModal, setInfoModal] = useState({ open: false, testKey: null });
-
-  // Pour la modale "phrase à trous"
   const [sentenceModalOpen, setSentenceModalOpen] = useState(false);
 
-
-  // Load from gallery examples
   React.useEffect(() => {
     const raw = sessionStorage.getItem('ss_gallery_load');
     if (!raw) return;
@@ -51,27 +41,53 @@ function HomePage() {
   }, []);
 
   const centerPanelRef = useRef(null);
+  const exportAreaRef  = useRef(null);   // viz + results, cropped tight
+  const designShareRef = useRef(null);   // design only
 
   // ----------- LABELS TESTS ---------
-  const testLabels = {
-    ttest: "Independent t-test",
-    anova: "Between-subjects ANOVA",
-    anova_rm: "Repeated-measures ANOVA",
-    anova_mixed: "Mixed ANOVA",
-    lmm: "Linear Mixed Model (LMM)",
-    anova_factorial: "Factorial ANOVA",
-    ttest_paired: "Paired t-test",
-    correlation: "Correlation (Pearson r)",
-    chi2: "Chi-square",
-    regression: "Regression"
+  const testLabels = fr ? {
+    ttest:          "t-test indépendant",
+    anova:          "ANOVA inter-sujets",
+    anova_rm:       "ANOVA mesures répétées",
+    anova_mixed:    "ANOVA mixte",
+    lmm:            "Modèle mixte linéaire (LMM)",
+    anova_factorial:"ANOVA factorielle",
+    ttest_paired:   "t-test apparié",
+    correlation:    "Corrélation (Pearson r)",
+    chi2:           "Khi-deux (χ²)",
+    regression:     "Régression"
+  } : {
+    ttest:          "Independent t-test",
+    anova:          "Between-subjects ANOVA",
+    anova_rm:       "Repeated-measures ANOVA",
+    anova_mixed:    "Mixed ANOVA",
+    lmm:            "Linear Mixed Model (LMM)",
+    anova_factorial:"Factorial ANOVA",
+    ttest_paired:   "Paired t-test",
+    correlation:    "Correlation (Pearson r)",
+    chi2:           "Chi-square",
+    regression:     "Regression"
   };
-
 
   // --------- TEST INFORMATION ---------
   const testInfos = {
     ttest: {
-      title: "Independent t-test",
-      content: (
+      title: fr ? "t-test indépendant" : "Independent t-test",
+      content: fr ? (
+        <>
+          <b>Indépendance des groupes</b><br />
+          ➝ Vérifier : design de l'étude (chaque participant dans un seul groupe)<br />
+          ➝ Robustesse : essentielle, la violation invalide le test
+          <br /><br />
+          <b>Normalité dans chaque groupe</b><br />
+          ➝ Vérifier : test de Shapiro–Wilk par groupe<br />
+          ➝ Robustesse : peu sensible si N &gt; 30 par groupe
+          <br /><br />
+          <b>Homogénéité des variances</b><br />
+          ➝ Vérifier : test de Levene<br />
+          ➝ Robustesse : si violée, utiliser le t-test de Welch
+        </>
+      ) : (
         <>
           <b>Group independence</b><br />
           ➝ Check: study design (each participant is only in one group)<br />
@@ -79,17 +95,31 @@ function HomePage() {
           <br /><br />
           <b>Normality within each group</b><br />
           ➝ Check: Shapiro–Wilk test per group<br />
-          ➝ Robustness: not very sensitive if N &gt; 30 per group or group sizes are similar
+          ➝ Robustness: not very sensitive if N &gt; 30 per group
           <br /><br />
           <b>Homogeneity of variances</b><br />
-          ➝ Check: Levene’s test<br />
-          ➝ Robustness: if violated, use Welch’s t-test (robust to unequal variances)
+          ➝ Check: Levene's test<br />
+          ➝ Robustness: if violated, use Welch's t-test
         </>
       )
     },
     anova: {
-      title: "Between-subjects ANOVA",
-      content: (
+      title: fr ? "ANOVA inter-sujets" : "Between-subjects ANOVA",
+      content: fr ? (
+        <>
+          <b>Indépendance des groupes</b><br />
+          ➝ Vérifier : design<br />
+          ➝ Robustesse : essentielle
+          <br /><br />
+          <b>Normalité dans chaque groupe</b><br />
+          ➝ Vérifier : Shapiro–Wilk par groupe<br />
+          ➝ Robustesse : peu sensible si N &gt; 30
+          <br /><br />
+          <b>Homogénéité des variances</b><br />
+          ➝ Vérifier : test de Levene<br />
+          ➝ Robustesse : assez robuste si les groupes ont des tailles similaires
+        </>
+      ) : (
         <>
           <b>Group independence</b><br />
           ➝ Check: study design<br />
@@ -97,66 +127,103 @@ function HomePage() {
           <br /><br />
           <b>Normality within each group</b><br />
           ➝ Check: Shapiro–Wilk per group<br />
-          ➝ Robustness: not sensitive if N &gt; 30 per group or group sizes are similar
+          ➝ Robustness: not sensitive if N &gt; 30 per group
           <br /><br />
           <b>Homogeneity of variances</b><br />
-          ➝ Check: Levene’s test<br />
-          ➝ Robustness: fairly robust if group sizes are similar; otherwise results may be biased
+          ➝ Check: Levene's test<br />
+          ➝ Robustness: fairly robust if group sizes are similar
         </>
       )
     },
     anova_rm: {
-      title: "Repeated-measures ANOVA (within-subjects)",
-      content: (
+      title: fr ? "ANOVA mesures répétées" : "Repeated-measures ANOVA (within-subjects)",
+      content: fr ? (
+        <>
+          <b>Normalité dans chaque condition</b><br />
+          ➝ Vérifier : Shapiro–Wilk par condition<br />
+          ➝ Robustesse : peu sensible si N &gt; 30
+          <br /><br />
+          <b>Sphéricité</b><br />
+          ➝ Vérifier : test de Mauchly<br />
+          ➝ Robustesse : appliquer une correction (Greenhouse–Geisser) si violée
+        </>
+      ) : (
         <>
           <b>Normality within each condition</b><br />
           ➝ Check: Shapiro–Wilk per condition<br />
           ➝ Robustness: not very sensitive if N &gt; 30
           <br /><br />
           <b>Sphericity</b><br />
-          ➝ Check: Mauchly’s test<br />
-          ➝ Robustness: apply correction (Greenhouse–Geisser or Huynh–Feldt) if violated
+          ➝ Check: Mauchly's test<br />
+          ➝ Robustness: apply correction (Greenhouse–Geisser) if violated
         </>
       )
     },
     anova_mixed: {
-      title: "Mixed ANOVA (within- and between-subjects)",
-      content: (
+      title: fr ? "ANOVA mixte" : "Mixed ANOVA (within- and between-subjects)",
+      content: fr ? (
+        <>
+          <b>Normalité pour chaque combinaison groupe × condition</b><br />
+          ➝ Vérifier : Shapiro–Wilk pour chaque combinaison<br />
+          <br />
+          <b>Homogénéité des variances (inter-sujets)</b><br />
+          ➝ Vérifier : test de Levene<br />
+          <br />
+          <b>Sphéricité (intra-sujets)</b><br />
+          ➝ Vérifier : test de Mauchly<br />
+          ➝ Corriger si violée (Greenhouse–Geisser)
+          <br /><br />
+          <b>Indépendance des groupes</b><br />
+          ➝ Vérifier : design — essentielle
+        </>
+      ) : (
         <>
           <b>Normality for each group × condition combination</b><br />
           ➝ Check: Shapiro–Wilk for each combination<br />
-          ➝ Robustness: not very sensitive if each subgroup includes at least 30 subjects
-          <br /><br />
+          <br />
           <b>Homogeneity of variances for between-subjects</b><br />
-          ➝ Check: Levene’s test<br />
-          ➝ Robustness: fairly robust if group sizes are similar; otherwise interpret with caution
-          <br /><br />
-          <b>Sphericity for within-subjects factors and interactions</b><br />
-          ➝ Check: Mauchly’s test<br />
-          ➝ Robustness: apply correction (Greenhouse–Geisser or Huynh–Feldt) if violated
+          ➝ Check: Levene's test<br />
+          <br />
+          <b>Sphericity for within-subjects factors</b><br />
+          ➝ Check: Mauchly's test; apply Greenhouse–Geisser if violated
           <br /><br />
           <b>Between-subjects group independence</b><br />
-          ➝ Check: study design<br />
-          ➝ Robustness: essential
+          ➝ Check: study design — essential
         </>
       )
     },
     lmm: {
       title: "Linear Mixed Model (LMM)",
-      content: (
+      content: fr ? (
+        <>
+          <b>LMM (Modèle Mixte Linéaire)</b><br />
+          ➝ Analyse de puissance avec effets fixes et aléatoires.<br />
+          ➝ Nécessite un facteur aléatoire (ex : participants).<br /><br />
+          <b>Méthode</b> : N estimé analytiquement puis validé par simulations Monte Carlo.
+        </>
+      ) : (
         <>
           <b>LMM (Linear Mixed Model)</b><br />
           ➝ Power analysis based on a model with fixed and random effects.<br />
-          ➝ Requires specifying a random factor (usually “participants”).<br />
-          ➝ Allows accounting for multiple sources of variability.<br /><br />
-          <b>Method</b>: N found analytically, then validated by Monte Carlo simulations on the server.
+          ➝ Requires specifying a random factor (usually "participants").<br /><br />
+          <b>Method</b>: N found analytically, then validated by Monte Carlo simulations.
         </>
       )
-    }
-    ,
+    },
     ttest_paired: {
-      title: "Paired t-test",
-      content: (
+      title: fr ? "t-test apparié" : "Paired t-test",
+      content: fr ? (
+        <>
+          <b>Normalité des différences</b><br />
+          ➝ Vérifier : Shapiro–Wilk sur les scores de différences (post − pré)<br />
+          ➝ Robustesse : peu sensible si N &gt; 30
+          <br /><br />
+          <b>Dépendance entre les mesures</b><br />
+          ➝ Chaque participant est mesuré deux fois — il est son propre contrôle
+          <br /><br />
+          <b>Taille d'effet d</b> : 0,2 = petit · 0,5 = moyen · 0,8 = grand
+        </>
+      ) : (
         <>
           <b>Normality of differences</b><br />
           ➝ Check: Shapiro–Wilk on the difference scores (post − pre)<br />
@@ -170,26 +237,53 @@ function HomePage() {
       )
     },
     correlation: {
-      title: "Correlation (Pearson r)",
-      content: (
+      title: fr ? "Corrélation (Pearson r)" : "Correlation (Pearson r)",
+      content: fr ? (
+        <>
+          <b>Linéarité</b><br />
+          ➝ Vérifier : nuage de points entre les deux variables<br />
+          ➝ Si non linéaire, utiliser le ρ de Spearman
+          <br /><br />
+          <b>Normalité bivariée</b><br />
+          ➝ Peu critique si N &gt; 30
+          <br /><br />
+          <b>Pas de valeurs aberrantes influentes</b><br />
+          ➝ Une seule valeur aberrante peut fortement distordre r
+          <br /><br />
+          <b>Taille d'effet r</b> : 0,10 = petit · 0,30 = moyen · 0,50 = grand
+        </>
+      ) : (
         <>
           <b>Linearity</b><br />
           ➝ Check: scatterplot between the two variables<br />
           ➝ If non-linear, use Spearman's ρ instead
           <br /><br />
           <b>Bivariate normality</b><br />
-          ➝ Check: Shapiro–Wilk per variable · Robustness: not critical if N &gt; 30
+          ➝ Not critical if N &gt; 30
           <br /><br />
           <b>No influential outliers</b><br />
-          ➝ Check: scatterplot — one outlier can strongly distort r
+          ➝ One outlier can strongly distort r
           <br /><br />
           <b>Effect size r</b>: 0.10 = small · 0.30 = medium · 0.50 = large
         </>
       )
     },
     chi2: {
-      title: "Chi-square test",
-      content: (
+      title: fr ? "Khi-deux (χ²)" : "Chi-square test",
+      content: fr ? (
+        <>
+          <b>Indépendance des observations</b><br />
+          ➝ Chaque participant compté une seule fois (essentiel)
+          <br /><br />
+          <b>Fréquences attendues minimales</b><br />
+          ➝ Toutes les fréquences attendues ≥ 5<br />
+          ➝ Si violé : test exact de Fisher ou fusion de catégories
+          <br /><br />
+          <b>Degrés de liberté</b> : dl = (lignes − 1) × (colonnes − 1)
+          <br /><br />
+          <b>Taille d'effet w</b> : 0,10 = petit · 0,30 = moyen · 0,50 = grand
+        </>
+      ) : (
         <>
           <b>Independence of observations</b><br />
           ➝ Each participant counted only once (essential)
@@ -205,8 +299,20 @@ function HomePage() {
       )
     },
     regression: {
-      title: "Multiple Linear Regression",
-      content: (
+      title: fr ? "Régression linéaire multiple" : "Multiple Linear Regression",
+      content: fr ? (
+        <>
+          <b>Linéarité</b> — Vérifier : résidus vs. valeurs ajustées
+          <br /><br />
+          <b>Indépendance des résidus</b> — Vérifier : test de Durbin–Watson
+          <br /><br />
+          <b>Homoscédasticité</b> — Vérifier : test de Breusch–Pagan
+          <br /><br />
+          <b>Normalité des résidus</b> — Q-Q plot (peu critique si N &gt; 50)
+          <br /><br />
+          <b>Taille d'effet f²</b> = R²/(1−R²) : 0,02 = petit · 0,15 = moyen · 0,35 = grand
+        </>
+      ) : (
         <>
           <b>Linearity</b> — Check: residuals vs. fitted plot
           <br /><br />
@@ -214,7 +320,7 @@ function HomePage() {
           <br /><br />
           <b>Homoscedasticity</b> — Check: Breusch–Pagan test
           <br /><br />
-          <b>Normality of residuals</b> — Check: Q-Q plot (not critical N &gt; 50)
+          <b>Normality of residuals</b> — Q-Q plot (not critical N &gt; 50)
           <br /><br />
           <b>Effect size f²</b> = R²/(1−R²): 0.02 = small · 0.15 = medium · 0.35 = large
         </>
@@ -222,108 +328,70 @@ function HomePage() {
     }
   };
 
-
-    // ----------- FONCTION SYNCHRO FORM <-> FACTEURS -----------
-    const handleFormUpdate = (data) => {
-    // Save for community import
+  const handleFormUpdate = (data) => {
     sessionStorage.setItem('ss_last_design', JSON.stringify({ ...data, selectedTest }));
-      if (data.interFactors) setInterFactors(data.interFactors);
-      if (data.intraFactors) setIntraFactors(data.intraFactors);
-      setFormData(data);
+    if (data.interFactors) setInterFactors(data.interFactors);
+    if (data.intraFactors) setIntraFactors(data.intraFactors);
+    setFormData(data);
+    const hasActivity =
+      data._fromTemplate ||
+      (data.interFactors || []).some(f => f.name?.trim() || f.levels?.length > 0) ||
+      (data.intraFactors  || []).some(f => f.name?.trim() || f.levels?.length > 0);
+    if (hasActivity) setDesignTouched(true);
+    detectPossibleTests({
+      ...data,
+      interFactors: data.interFactors,
+      intraFactors: data.intraFactors,
+    }, hasActivity || designTouched);
+  };
 
-      // Detect user interaction: any named factor, any level, or from sentence template
-      const hasActivity =
-        data._fromTemplate ||
-        (data.interFactors || []).some(f => f.name?.trim() || f.levels?.length > 0) ||
-        (data.intraFactors  || []).some(f => f.name?.trim() || f.levels?.length > 0);
-      if (hasActivity) setDesignTouched(true);
-      detectPossibleTests({
-        ...data,
-        interFactors: data.interFactors,
-        intraFactors: data.intraFactors,
-      }, hasActivity || designTouched);
-    };
+  const detectPossibleTests = (data, touched) => {
+    if (!touched) { setPossibleTests([]); return; }
+    const validInter = (data.interFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
+    const validIntra = (data.intraFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
+    const nInter = validInter.length;
+    const nIntra = validIntra.length;
+    const nCells = validInter.reduce((acc, f) => acc * f.levels.length, 1);
+    let tests = [];
+    if (nInter >= 1 && nIntra === 0) {
+      if (nCells === 2) tests.push("ttest");
+      if (nInter === 1) tests.push("anova");
+      else tests.push("anova_factorial");
+    }
+    if (nIntra >= 1 && nInter === 0) { tests.push("anova_rm"); tests.push("lmm"); }
+    if (nInter >= 1 && nIntra >= 1) { tests.push("anova_mixed"); tests.push("lmm"); }
+    if (nIntra === 1 && validIntra[0]?.levels.length === 2 && nInter === 0) tests.push("ttest_paired");
+    tests = [...new Set(tests)];
+    setPossibleTests(tests);
+    if (selectedTest && !['correlation','chi2','regression'].includes(selectedTest) && !tests.includes(selectedTest)) {
+      setSelectedTest(null);
+    }
+  };
 
-    // ----------- DÉTECTION TESTS POSSIBLES (design-based only) -----------
-    const detectPossibleTests = (data, touched) => {
-      // Design-based tests only appear when user has started defining a design
-      if (!touched) {
-        setPossibleTests([]);
-        return;
-      }
-
-      const validInter = (data.interFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
-      const validIntra = (data.intraFactors || []).filter(f => f.name && f.levels && f.levels.length >= 2);
-      const nInter = validInter.length;
-      const nIntra = validIntra.length;
-      const nCells = validInter.reduce((acc, f) => acc * f.levels.length, 1);
-
-      let tests = [];
-
-      if (nInter >= 1 && nIntra === 0) {
-        if (nCells === 2) tests.push("ttest");
-        if (nInter === 1) tests.push("anova");
-        else tests.push("anova_factorial");
-      }
-      if (nIntra >= 1 && nInter === 0) {
-        tests.push("anova_rm");
-        tests.push("lmm");
-      }
-      if (nInter >= 1 && nIntra >= 1) {
-        tests.push("anova_mixed");
-        tests.push("lmm");
-      }
-      if (nIntra === 1 && validIntra[0]?.levels.length === 2 && nInter === 0) {
-        tests.push("ttest_paired");
-      }
-
-      tests = [...new Set(tests)];
-      setPossibleTests(tests);
-      if (selectedTest && !['correlation','chi2','regression'].includes(selectedTest) && !tests.includes(selectedTest)) {
-        setSelectedTest(null);
-      }
-    };
-
-
-  // ----------- CALCUL DU TEST SÉLECTIONNÉ -----------
   const handleTestSelect = async (test) => {
     setSelectedTest(test);
     setResult(null);
-    // Auto-switch design mode when test is selected from left panel
     if (['correlation','chi2','regression'].includes(test)) {
-      setDesignMode("variables");
-      setVariablesTest(test);
+      setDesignMode("variables"); setVariablesTest(test);
     } else {
       setDesignMode("experimental");
     }
-
-    // Prépare les facteurs pour le backend
     const factors = {};
-    interFactors.forEach((factor) => {
-      if (factor.name) factors[factor.name] = "between";
-    });
-    intraFactors.forEach((factor) => {
-      if (factor.name) factors[factor.name] = "within";
-    });
-    // Même logique pour les levels
-    const group_levels = interFactors.length > 0 && interFactors[0].levels.length > 0
-      ? interFactors[0].levels : [];
-    const level_levels = intraFactors.length > 0 && intraFactors[0].levels.length > 0
-      ? intraFactors[0].levels : [];
-
+    interFactors.forEach(f => { if (f.name) factors[f.name] = "between"; });
+    intraFactors.forEach(f => { if (f.name) factors[f.name] = "within"; });
+    const group_levels = interFactors[0]?.levels?.length > 0 ? interFactors[0].levels : [];
+    const level_levels = intraFactors[0]?.levels?.length > 0 ? intraFactors[0].levels : [];
     let fValue = parseFloat((formData.f || "0.25").replace(",", "."));
     let effectToSend = fValue;
-    // Conversion automatique pour t-test
     if (test === "ttest" && !isNaN(fValue)) {
       effectToSend = fValue * 2;
-      const msg = `Conversion G*Power : f × 2 = d = ${effectToSend.toFixed(3)}`;
-      setConversionInfo(msg);
-      setShowConversionInfo(true);
+      const msg = fr
+        ? `Conversion G*Power : f × 2 = d = ${effectToSend.toFixed(3)}`
+        : `G*Power conversion: f × 2 = d = ${effectToSend.toFixed(3)}`;
+      setConversionInfo(msg); setShowConversionInfo(true);
       setTimeout(() => setShowConversionInfo(false), 3500);
     }
-    // Pour LMM, pas d'appel ici (voir bouton dédié)
     if (test === "lmm") return;
-
     const payload = {
       alpha: parseFloat((formData.alpha || "0.05").replace(",", ".")),
       power: parseFloat((formData.power || "0.8").replace(",", ".")),
@@ -332,166 +400,95 @@ function HomePage() {
       f2: parseFloat((formData.f2 || "0.15").replace(",", ".")),
       chi2_df: parseInt(formData.chi2_df || 1),
       n_predictors: parseInt(formData.n_predictors || 1),
-      two_tailed: true,
-      factors,
-      group_levels,
-      level_levels,
-      interFactors: interFactors,
-      intraFactors: intraFactors,
-      selected_test: test
+      two_tailed: true, factors, group_levels, level_levels,
+      interFactors, intraFactors, selected_test: test
     };
-
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       const data = await res.json();
       setResult(data);
-    } catch {
-      setResult(null);
-    }
+    } catch { setResult(null); }
   };
 
-  // ----------- LMM (BOUTON LANCEMENT) -----------
   const handleLmmLaunch = async () => {
-    setIsLoadingLmm(true);
-    setResult(null);
+    setIsLoadingLmm(true); setResult(null);
     const factors = {};
-    interFactors.forEach((factor) => {
-      if (factor.name) factors[factor.name] = "between";
-    });
-    intraFactors.forEach((factor) => {
-      if (factor.name) factors[factor.name] = "within";
-    });
-    const group_levels = interFactors.length > 0 && interFactors[0].levels.length > 0
-      ? interFactors[0].levels : [];
-    const level_levels = intraFactors.length > 0 && intraFactors[0].levels.length > 0
-      ? intraFactors[0].levels : [];
-
+    interFactors.forEach(f => { if (f.name) factors[f.name] = "between"; });
+    intraFactors.forEach(f => { if (f.name) factors[f.name] = "within"; });
+    const group_levels = interFactors[0]?.levels?.length > 0 ? interFactors[0].levels : [];
+    const level_levels = intraFactors[0]?.levels?.length > 0 ? intraFactors[0].levels : [];
     const payload = {
       alpha: parseFloat((formData.alpha || "0.05").replace(",", ".")),
       power: parseFloat((formData.power || "0.8").replace(",", ".")),
       f: parseFloat((formData.f || "0.25").replace(",", ".")),
-      factors,
-      group_levels,
-      level_levels,
-      interFactors,
-      intraFactors,
-      selected_test: "lmm",
-      random_factor: formData.randomFactor,
-      n_sim: formData.nSimulations || 50
+      factors, group_levels, level_levels, interFactors, intraFactors,
+      selected_test: "lmm", random_factor: formData.randomFactor, n_sim: formData.nSimulations || 50
     };
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       const data = await res.json();
       setResult(data);
-    } catch {
-      setResult(null);
-    }
+    } catch { setResult(null); }
     setIsLoadingLmm(false);
   };
 
-
-  // ----------- EXPORT JPEG VISUEL -----------
+  // ----------- EXPORT: figure + résultats, cadrage serré -----------
   const handleExportJpeg = () => {
-    if (centerPanelRef.current) {
-      toJpeg(centerPanelRef.current, { quality: 0.98, backgroundColor: '#fff' })
-        .then((dataUrl) => {
-          const link = document.createElement('a');
-          link.download = 'simplesize-export.jpeg';
-          link.href = dataUrl;
-          link.click();
-        })
-        .catch(() => {
-          alert('Error while generating the JPEG');
-        });
-    }
+    const target = exportAreaRef.current;
+    if (!target) return;
+    toJpeg(target, { quality: 0.98, backgroundColor: '#fff', pixelRatio: 2 })
+      .then(dataUrl => {
+        const link = document.createElement('a');
+        link.download = 'simplesize-export.jpeg';
+        link.href = dataUrl; link.click();
+      })
+      .catch(() => alert(fr ? 'Erreur lors de la génération du JPEG' : 'Error while generating the JPEG'));
+  };
+
+  // ----------- SHARE DESIGN ONLY -----------
+  const handleShareDesign = () => {
+    const target = designShareRef.current;
+    if (!target) return;
+    toJpeg(target, { quality: 0.98, backgroundColor: '#fff', pixelRatio: 2 })
+      .then(dataUrl => {
+        const link = document.createElement('a');
+        link.download = 'simplesize-design.jpeg';
+        link.href = dataUrl; link.click();
+      })
+      .catch(() => alert(fr ? 'Erreur lors de la génération du JPEG' : 'Error generating JPEG'));
   };
 
   // ----------- UI / PANELS -----------
-
   const containerStyle = {
-    display: 'grid',
-    gridTemplateColumns: '220px 1fr 300px',
-    gap: '24px',
-    maxWidth: 1100,
-    margin: '16px auto',
-    background: '#fff',
-    borderRadius: 24,
-    boxShadow: '0 4px 32px #55D1E312',
-    padding: 26,
-    minHeight: 580
+    display: 'grid', gridTemplateColumns: '220px 1fr 300px', gap: '24px',
+    maxWidth: 1100, margin: '16px auto', background: '#fff', borderRadius: 24,
+    boxShadow: '0 4px 32px #55D1E312', padding: 26, minHeight: 580
   };
-
-  const colStyle = { display: 'flex', flexDirection: 'column', minWidth: 0 };
-
-  const leftPanelStyle = {
-    ...colStyle,
-    borderRight: '1.5px solid #F4F6F8',
-    paddingRight: 16,
-    alignItems: 'flex-start',
-  };
-
-  const centerPanelStyle = {
-    ...colStyle,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0 12px',
-  };
-
-  const rightPanelStyle = {
-    ...colStyle,
-    borderLeft: '1.5px solid #F4F6F8',
-    paddingLeft: 16,
-  };
+  const colStyle = { display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 };
+  const leftPanelStyle  = { ...colStyle, borderRight: '1.5px solid #F4F6F8', paddingRight: 16, alignItems: 'flex-start' };
+  const centerPanelStyle = { ...colStyle, alignItems: 'center', justifyContent: 'flex-start', padding: '0 12px', paddingTop: 8 };
+  const rightPanelStyle  = { ...colStyle, borderLeft: '1.5px solid #F4F6F8', paddingLeft: 16 };
 
   const testButtonStyle = (active, disabled) => ({
-    background: active
-      ? 'linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)'
-      : disabled
-        ? '#F4F6F8'
-        : 'linear-gradient(90deg,#f4f6f8 0%, #e6faff 100%)',
+    background: active ? 'linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)' : disabled ? '#F4F6F8' : 'linear-gradient(90deg,#f4f6f8 0%, #e6faff 100%)',
     color: active ? '#2F344A' : disabled ? '#B0B8D4' : '#2F344A',
     border: active ? '2px solid #55D1E3' : '1.5px solid #55D1E3',
-    borderRadius: 16,
-    fontWeight: 600,
-    fontSize: 16,
-    margin: '0 0 10px 0',
-    padding: '10px 0',
-    width: '100%',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.45 : 1,
-    boxShadow: active ? '0 2px 12px #55D1E326' : '0 1px 4px #55D1E312',
-    transition: 'all .15s'
+    borderRadius: 16, fontWeight: 600, fontSize: 16, margin: '0 0 10px 0', padding: '10px 0',
+    width: '100%', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1,
+    boxShadow: active ? '0 2px 12px #55D1E326' : '0 1px 4px #55D1E312', transition: 'all .15s'
   });
 
-  const exportButtonStyle = {
-    background: '#fff',
-    color: '#2F344A',
-    border: '1.5px solid #E0E7EF',
-    fontWeight: 600,
-    fontSize: 17,
-    borderRadius: 17,
-    margin: '28px auto 0',
-    display: 'block',
-    minWidth: 120,
-    padding: '9px 26px',
-    cursor: 'pointer',
-    boxShadow: '0 1px 6px #B0B8D422',
-    transition: 'all .13s'
-  };
+  const actionBtnStyle = (bg, border, color) => ({
+    background: bg, border: `1.5px solid ${border}`, color,
+    borderRadius: 20, fontWeight: 600, fontSize: 13, padding: '7px 18px',
+    cursor: 'pointer', transition: 'all .13s', boxShadow: '0 1px 6px rgba(0,0,0,0.07)'
+  });
 
-  // Titre
-  let testTitle = '';
-  if (selectedTest && testLabels[selectedTest]) {
-    testTitle = testLabels[selectedTest];
-  }
+  let testTitle = selectedTest && testLabels[selectedTest] ? testLabels[selectedTest] : '';
 
   return (
   <>
@@ -499,37 +496,37 @@ function HomePage() {
       {/* LEFT */}
       <div style={leftPanelStyle}>
         <div style={{ fontWeight: 600, fontSize: 14, color: "#8A93B2", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
-          Proposed tests
+          {fr ? "Tests proposés" : "Proposed tests"}
         </div>
 
-        {/* Experimental mode: tests based on defined factors */}
         {designMode === "experimental" && (
           possibleTests.length === 0 ? (
             <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
-              Define your factors on the right<br />— the matching tests will appear here.
+              {fr
+                ? <>Définissez vos facteurs à droite<br />— les tests correspondants apparaîtront ici.</>
+                : <>Define your factors on the right<br />— the matching tests will appear here.</>}
             </div>
           ) : (
-            possibleTests.map((test) => (
+            possibleTests.map(test => (
               <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
                 <button style={testButtonStyle(selectedTest === test, false)} onClick={() => handleTestSelect(test)}>
                   {testLabels[test] || test.toUpperCase()}
                 </button>
                 {testInfos[test] && (
-                  <span
-                    style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
-                    onClick={() => setInfoModal({ open: true, testKey: test })}
-                  >i</span>
+                  <span style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
+                    onClick={() => setInfoModal({ open: true, testKey: test })}>i</span>
                 )}
               </div>
             ))
           )
         )}
 
-        {/* Variables mode: test proposed based on radio selection */}
         {designMode === "variables" && (
           !variablesTest ? (
             <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
-              Select what you want to study on the right<br />— the matching test will appear here.
+              {fr
+                ? <>Sélectionnez ce que vous voulez étudier à droite<br />— le test correspondant apparaîtra ici.</>
+                : <>Select what you want to study on the right<br />— the matching test will appear here.</>}
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
@@ -537,10 +534,8 @@ function HomePage() {
                 {testLabels[variablesTest] || variablesTest.toUpperCase()}
               </button>
               {testInfos[variablesTest] && (
-                <span
-                  style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
-                  onClick={() => setInfoModal({ open: true, testKey: variablesTest })}
-                >i</span>
+                <span style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
+                  onClick={() => setInfoModal({ open: true, testKey: variablesTest })}>i</span>
               )}
             </div>
           )
@@ -550,175 +545,111 @@ function HomePage() {
       {/* CENTER */}
       <div style={centerPanelStyle} ref={centerPanelRef}>
 
-        {/* Design always visible once a test is selected */}
-        {selectedTest && (
-          <DesignVisualizer
-            groupFactors={interFactors}
-            levelFactors={intraFactors}
-            selectedTest={selectedTest}
-            testTitle={testTitle}
-            nPerGroup={result?.n_per_group ?? null}
-            formData={formData}
-            result={result}
-          />
-        )}
-
-        {/* Results appear after calculation */}
-        {result?.n_per_group != null && (
+        {selectedTest ? (
           <>
-            {selectedTest === "lmm" && result?.estimated_power != null && (
-              <div style={{ margin: "10px 0 6px 0", background: "#f0f8ff", border: "1px solid #b3d8f0", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#334" }}>
-                <div style={{ fontWeight: 700, marginBottom: 4, color: "#1a6a9a" }}>
-                  LMM simulation result
+            {/* Exportable area: design + results, cropped tight */}
+            <div ref={exportAreaRef} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%' }}>
+
+              {/* Design viz — also has its own ref for design-only share */}
+              <div ref={designShareRef} style={{ background: '#fff', borderRadius: 14, padding: '14px 10px 10px', width: '100%', boxSizing: 'border-box' }}>
+                <DesignVisualizer
+                  groupFactors={interFactors} levelFactors={intraFactors}
+                  selectedTest={selectedTest} testTitle={testTitle}
+                  nPerGroup={result?.n_per_group ?? null} formData={formData} result={result}
+                />
+                {/* SimpleSize branding for design share */}
+                <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #f0f3f8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, color: '#C8D0E7', fontWeight: 600 }}>
+                    {fr ? "Conçu avec SimpleSize" : "Designed with SimpleSize"}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#C8D0E7' }}>simplesize.science</span>
                 </div>
-                <div>
-                  <b>N per group:</b> {result.n_per_group}
-                  &nbsp;·&nbsp;
-                  <b>Simulated power:</b> {Math.round(result.estimated_power * 100)}%
-                  &nbsp;·&nbsp;
-                  <b>Simulations:</b> {result.n_sim} ({result.converged} converged)
-                </div>
-                {result.message && (
-                  <div style={{ marginTop: 5, color: "#555", fontStyle: "italic" }}>{result.message}</div>
-                )}
               </div>
-            )}
 
-            <button style={exportButtonStyle} onClick={handleExportJpeg}>
-              Export
-            </button>
+              {/* Results appear after calculation */}
+              {result?.n_per_group != null && (
+                <>
+                  {selectedTest === "lmm" && result?.estimated_power != null && (
+                    <div style={{ width: '100%', background: "#f0f8ff", border: "1px solid #b3d8f0", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#334" }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#1a6a9a" }}>
+                        {fr ? "Résultat simulation LMM" : "LMM simulation result"}
+                      </div>
+                      <div>
+                        <b>{fr ? "N par groupe :" : "N per group:"}</b> {result.n_per_group}
+                        &nbsp;·&nbsp;
+                        <b>{fr ? "Puissance simulée :" : "Simulated power:"}</b> {Math.round(result.estimated_power * 100)}%
+                        &nbsp;·&nbsp;
+                        <b>{fr ? "Simulations :" : "Simulations:"}</b> {result.n_sim} ({result.converged} {fr ? "convergées" : "converged"})
+                      </div>
+                      {result.message && <div style={{ marginTop: 5, color: "#555", fontStyle: "italic" }}>{result.message}</div>}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Action buttons — outside exportable area */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button style={actionBtnStyle('#f0fbfd', '#b3e8f0', '#1a8fa8')} onClick={handleShareDesign}>
+                &#128247; {fr ? "Partager ce design (JPG)" : "Share design (JPG)"}
+              </button>
+              {result?.n_per_group != null && (
+                <button style={actionBtnStyle('#fff', '#E0E7EF', '#2F344A')} onClick={handleExportJpeg}>
+                  &#8659; {fr ? "Exporter figure + résultats" : "Export figure + results"}
+                </button>
+              )}
+            </div>
           </>
-        )}
-
-        {/* Placeholder when no test selected */}
-        {!selectedTest && (
+        ) : (
           <div style={{ color: "#C8D0E7", fontSize: 15, fontStyle: "italic", marginTop: 40, textAlign: "center", lineHeight: 1.8 }}>
-            Define your design on the right<br />and select a test to visualize it here.
+            {fr
+              ? <>Définissez votre design à droite<br />et sélectionnez un test pour le visualiser ici.</>
+              : <>Define your design on the right<br />and select a test to visualize it here.</>}
           </div>
         )}
-
       </div>
 
       {/* RIGHT */}
       <div style={rightPanelStyle}>
         <AnovaForm
-          formData={formData}
-          onUpdate={handleFormUpdate}
-          conversionInfo={conversionInfo}
-          showConversionInfo={showConversionInfo}
-          selectedTest={selectedTest}
-          onLmmLaunch={handleLmmLaunch}
-          isLoadingLmm={isLoadingLmm}
-          interFactors={interFactors}
-          intraFactors={intraFactors}
-          onRun={() => {
-            const test = designMode === "variables" ? variablesTest : selectedTest;
-            if (test && test !== "lmm") handleTestSelect(test);
-          }}
-          onDesignModeChange={(mode) => setDesignMode(mode)}
+          formData={formData} onUpdate={handleFormUpdate}
+          conversionInfo={conversionInfo} showConversionInfo={showConversionInfo}
+          selectedTest={selectedTest} onLmmLaunch={handleLmmLaunch}
+          isLoadingLmm={isLoadingLmm} interFactors={interFactors} intraFactors={intraFactors}
+          onRun={() => { const test = designMode === "variables" ? variablesTest : selectedTest; if (test && test !== "lmm") handleTestSelect(test); }}
+          onDesignModeChange={mode => setDesignMode(mode)}
           onOpenTemplate={() => setSentenceModalOpen(true)}
-          onVariablesTestChange={(test) => {
-            setVariablesTest(test);
-            if (test) setSelectedTest(test);
-          }}
+          onVariablesTestChange={test => { setVariablesTest(test); if (test) setSelectedTest(test); }}
         />
       </div>
     </div>
 
     {/* TEST INFO MODAL */}
     {infoModal.open && testInfos[infoModal.testKey] && (
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          background: "rgba(47,52,74,0.17)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 17,
-            padding: "28px 32px 20px 32px",
-            minWidth: 370,
-            maxWidth: 440,
-            boxShadow: "0 2px 24px #2f344a33",
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 21,
-              fontWeight: 700,
-              marginBottom: 15,
-              color: "#2F344A",
-            }}
-          >
-            {testInfos[infoModal.testKey].title}
-          </div>
-          <div style={{ fontSize: 16, color: "#344", lineHeight: 1.5 }}>
-            {testInfos[infoModal.testKey].content}
-          </div>
-          <button
-            onClick={() => setInfoModal({ open: false, testKey: null })}
-            style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              background: "none",
-              border: "none",
-              fontWeight: 800,
-              fontSize: 18,
-              color: "#B0B8D4",
-              cursor: "pointer",
-            }}
-            title="Close"
-          >
-            ×
-          </button>
+      <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+        <div style={{ background: "#fff", borderRadius: 17, padding: "28px 32px 20px 32px", minWidth: 370, maxWidth: 440, boxShadow: "0 2px 24px #2f344a33", position: "relative" }}>
+          <div style={{ fontSize: 21, fontWeight: 700, marginBottom: 15, color: "#2F344A" }}>{testInfos[infoModal.testKey].title}</div>
+          <div style={{ fontSize: 16, color: "#344", lineHeight: 1.5 }}>{testInfos[infoModal.testKey].content}</div>
+          <button onClick={() => setInfoModal({ open: false, testKey: null })} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", fontWeight: 800, fontSize: 18, color: "#B0B8D4", cursor: "pointer" }}>×</button>
         </div>
       </div>
     )}
 
     {/* SENTENCE TEMPLATE MODAL */}
     {sentenceModalOpen && (
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          background: "rgba(47,52,74,0.17)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 900,
-        }}
-      >
+      <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900 }}>
         <PlanSentenceFiller
           formData={formData}
           onApply={(data) => {
             setSentenceModalOpen(false);
             handleFormUpdate(data);
-            // If template specifies a direct test, switch to variables mode and auto-select
-            if (data._testType) {
-              setDesignMode("variables");
-              setVariablesTest(data._testType);
-              setSelectedTest(data._testType);
-            }
+            if (data._testType) { setDesignMode("variables"); setVariablesTest(data._testType); setSelectedTest(data._testType); }
           }}
           onCancel={() => setSentenceModalOpen(false)}
         />
       </div>
     )}
-      </>
+  </>
   );
 }
 
