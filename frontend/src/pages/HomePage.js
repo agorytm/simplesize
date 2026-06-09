@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import AnovaForm from '../AnovaForm';
 import DesignVisualizer from '../DesignVisualizer';
 import { toJpeg } from 'html-to-image';
@@ -6,9 +6,21 @@ import '../SimpleSize.css';
 import PlanSentenceFiller from '../PlanSentenceFiller';
 import { useTranslation } from 'react-i18next';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 700);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 700);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 function HomePage() {
   const { i18n } = useTranslation();
   const fr = i18n.language === 'fr';
+  const isMobile = useIsMobile();
+  const [mobileTab, setMobileTab] = useState('form');
 
   const [interFactors, setInterFactors] = useState([{ name: '', levels: [] }]);
   const [intraFactors, setIntraFactors] = useState([{ name: '', levels: [] }]);
@@ -26,7 +38,20 @@ function HomePage() {
   const [sentenceModalOpen, setSentenceModalOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
-  React.useEffect(() => {
+  // Auto-switch mobile tabs based on state
+  useEffect(() => {
+    if (!isMobile) return;
+    if ((possibleTests.length > 0 || variablesTest) && mobileTab === 'form') {
+      setMobileTab('tests');
+    }
+  }, [possibleTests.length, variablesTest]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (result) setMobileTab('result');
+  }, [result]); // eslint-disable-line
+
+  useEffect(() => {
     const raw = sessionStorage.getItem('ss_gallery_load');
     if (!raw) return;
     sessionStorage.removeItem('ss_gallery_load');
@@ -54,11 +79,14 @@ function HomePage() {
     setConversionInfo("");
     setShowConversionInfo(false);
     setResetKey(k => k + 1);
+    if (isMobile) setMobileTab('form');
   };
 
   const centerPanelRef = useRef(null);
-  const exportAreaRef  = useRef(null);   // viz + results, cropped tight
-  const designShareRef = useRef(null);   // design only
+  const exportAreaRef  = useRef(null);
+  const designShareRef = useRef(null);
+  const exportAreaRefMobile = useRef(null);
+  const designShareRefMobile = useRef(null);
 
   // ----------- LABELS TESTS ---------
   const testLabels = fr ? {
@@ -452,9 +480,8 @@ function HomePage() {
     setIsLoadingLmm(false);
   };
 
-  // ----------- EXPORT: figure + résultats, cadrage serré -----------
   const handleExportJpeg = () => {
-    const target = exportAreaRef.current;
+    const target = isMobile ? exportAreaRefMobile.current : exportAreaRef.current;
     if (!target) return;
     toJpeg(target, { quality: 0.98, backgroundColor: '#fff', pixelRatio: 2 })
       .then(dataUrl => {
@@ -465,9 +492,8 @@ function HomePage() {
       .catch(() => alert(fr ? 'Erreur lors de la génération du JPEG' : 'Error while generating the JPEG'));
   };
 
-  // ----------- SHARE DESIGN ONLY -----------
   const handleShareDesign = () => {
-    const target = designShareRef.current;
+    const target = isMobile ? designShareRefMobile.current : designShareRef.current;
     if (!target) return;
     toJpeg(target, { quality: 0.98, backgroundColor: '#fff', pixelRatio: 2 })
       .then(dataUrl => {
@@ -478,7 +504,7 @@ function HomePage() {
       .catch(() => alert(fr ? 'Erreur lors de la génération du JPEG' : 'Error generating JPEG'));
   };
 
-  // ----------- UI / PANELS -----------
+  // ----------- STYLES -----------
   const containerStyle = {
     display: 'grid', gridTemplateColumns: '220px 1fr 300px', gap: '24px',
     maxWidth: 1100, margin: '16px auto', background: '#fff', borderRadius: 24,
@@ -506,132 +532,226 @@ function HomePage() {
 
   let testTitle = selectedTest && testLabels[selectedTest] ? testLabels[selectedTest] : '';
 
+  // --------- SHARED JSX FRAGMENTS ---------
+  const TestButtonsContent = ({ refMobile } = {}) => (
+    <>
+      <div style={{ fontWeight: 600, fontSize: 14, color: "#8A93B2", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
+        {fr ? "Tests proposés" : "Proposed tests"}
+      </div>
+      {(selectedTest || possibleTests.length > 0 || designTouched) && (
+        <button onClick={handleReset} style={{
+          background: 'none', border: 'none', color: '#B0B8D4',
+          fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '2px 0 10px',
+          textDecoration: 'underline', alignSelf: 'flex-start',
+        }}>
+          {fr ? "réinitialiser" : "reset"}
+        </button>
+      )}
+      {designMode === "experimental" && (
+        possibleTests.length === 0 ? (
+          <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
+            {fr
+              ? <>Définissez vos facteurs{isMobile ? " dans l'onglet Design" : " à droite"}<br />— les tests correspondants apparaîtront ici.</>
+              : <>Define your factors{isMobile ? " in the Design tab" : " on the right"}<br />— the matching tests will appear here.</>}
+          </div>
+        ) : (
+          possibleTests.map(test => (
+            <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6, width: '100%' }}>
+              <button style={testButtonStyle(selectedTest === test, false)} onClick={() => handleTestSelect(test)}>
+                {testLabels[test] || test.toUpperCase()}
+              </button>
+              {testInfos[test] && (
+                <span style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
+                  onClick={() => setInfoModal({ open: true, testKey: test })}>i</span>
+              )}
+            </div>
+          ))
+        )
+      )}
+      {designMode === "variables" && (
+        !variablesTest ? (
+          <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
+            {fr
+              ? <>Sélectionnez ce que vous voulez étudier{isMobile ? " dans l'onglet Design" : " à droite"}<br />— le test correspondant apparaîtra ici.</>
+              : <>Select what you want to study{isMobile ? " in the Design tab" : " on the right"}<br />— the matching test will appear here.</>}
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 6, width: '100%' }}>
+            <button style={testButtonStyle(selectedTest === variablesTest, false)} onClick={() => handleTestSelect(variablesTest)}>
+              {testLabels[variablesTest] || variablesTest.toUpperCase()}
+            </button>
+            {testInfos[variablesTest] && (
+              <span style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
+                onClick={() => setInfoModal({ open: true, testKey: variablesTest })}>i</span>
+            )}
+          </div>
+        )
+      )}
+    </>
+  );
+
+  const VizContent = ({ exportRef, shareRef }) => (
+    selectedTest ? (
+      <>
+        <div ref={exportRef} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%' }}>
+          <div ref={shareRef} style={{ background: '#fff', borderRadius: 14, padding: '14px 10px 10px', width: '100%', boxSizing: 'border-box' }}>
+            <DesignVisualizer
+              groupFactors={interFactors} levelFactors={intraFactors}
+              selectedTest={selectedTest} testTitle={testTitle}
+              nPerGroup={result?.n_per_group ?? null} formData={formData} result={result}
+            />
+            <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #f0f3f8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: '#C8D0E7', fontWeight: 600 }}>
+                {fr ? "Conçu avec SimpleSize" : "Designed with SimpleSize"}
+              </span>
+              <span style={{ fontSize: 10, color: '#C8D0E7' }}>simplesize.science</span>
+            </div>
+          </div>
+          {result?.n_per_group != null && selectedTest === "lmm" && result?.estimated_power != null && (
+            <div style={{ width: '100%', background: "#f0f8ff", border: "1px solid #b3d8f0", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#334" }}>
+              <div style={{ fontWeight: 700, marginBottom: 4, color: "#1a6a9a" }}>
+                {fr ? "Résultat simulation LMM" : "LMM simulation result"}
+              </div>
+              <div>
+                <b>{fr ? "N par groupe :" : "N per group:"}</b> {result.n_per_group}
+                &nbsp;·&nbsp;
+                <b>{fr ? "Puissance simulée :" : "Simulated power:"}</b> {Math.round(result.estimated_power * 100)}%
+                &nbsp;·&nbsp;
+                <b>{fr ? "Simulations :" : "Simulations:"}</b> {result.n_sim} ({result.converged} {fr ? "convergées" : "converged"})
+              </div>
+              {result.message && <div style={{ marginTop: 5, color: "#555", fontStyle: "italic" }}>{result.message}</div>}
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button style={actionBtnStyle('#f0fbfd', '#b3e8f0', '#1a8fa8')} onClick={handleShareDesign}>
+            &#128247; {fr ? "Partager ce design (JPG)" : "Share design (JPG)"}
+          </button>
+          {result?.n_per_group != null && (
+            <button style={actionBtnStyle('#fff', '#E0E7EF', '#2F344A')} onClick={handleExportJpeg}>
+              &#8659; {fr ? "Exporter figure + résultats" : "Export figure + results"}
+            </button>
+          )}
+        </div>
+      </>
+    ) : (
+      <div style={{ color: "#C8D0E7", fontSize: 15, fontStyle: "italic", marginTop: 40, textAlign: "center", lineHeight: 1.8 }}>
+        {fr
+          ? <>Définissez votre design{isMobile ? " dans l'onglet Design" : " à droite"}<br />et sélectionnez un test pour le visualiser ici.</>
+          : <>Define your design{isMobile ? " in the Design tab" : " on the right"}<br />and select a test to visualize it here.</>}
+      </div>
+    )
+  );
+
+  const Modals = () => (
+    <>
+      {infoModal.open && testInfos[infoModal.testKey] && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: '16px', boxSizing: 'border-box' }}>
+          <div style={{ background: "#fff", borderRadius: 17, padding: "28px 24px 20px 24px", width: '100%', maxWidth: 440, boxShadow: "0 2px 24px #2f344a33", position: "relative" }}>
+            <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 15, color: "#2F344A", paddingRight: 24 }}>{testInfos[infoModal.testKey].title}</div>
+            <div style={{ fontSize: 15, color: "#344", lineHeight: 1.5 }}>{testInfos[infoModal.testKey].content}</div>
+            <button onClick={() => setInfoModal({ open: false, testKey: null })} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", fontWeight: 800, fontSize: 18, color: "#B0B8D4", cursor: "pointer" }}>×</button>
+          </div>
+        </div>
+      )}
+      {sentenceModalOpen && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: isMobile ? 'flex-end' : "center", justifyContent: "center", zIndex: 900 }}>
+          <PlanSentenceFiller
+            formData={formData}
+            onApply={(data) => {
+              setSentenceModalOpen(false);
+              handleFormUpdate(data);
+              if (data._testType) { setDesignMode("variables"); setVariablesTest(data._testType); setSelectedTest(data._testType); }
+            }}
+            onCancel={() => setSentenceModalOpen(false)}
+          />
+        </div>
+      )}
+    </>
+  );
+
+  // ============================================================
+  //  MOBILE LAYOUT
+  // ============================================================
+  if (isMobile) {
+    const tabCount = possibleTests.length || (variablesTest ? 1 : 0);
+    const tabs = [
+      { key: 'form', label: fr ? 'Design' : 'Design' },
+      { key: 'tests', label: fr ? 'Tests' : 'Tests', badge: tabCount },
+      { key: 'result', label: fr ? 'Résultat' : 'Result', done: !!result },
+    ];
+
+    return (
+      <>
+        <div style={{ background: '#fff', borderRadius: 16, margin: '10px 10px 24px', boxShadow: '0 4px 20px #55D1E312', overflow: 'hidden' }}>
+          {/* Mobile tab bar */}
+          <div style={{ display: 'flex', borderBottom: '2px solid #F0F3F8', background: '#fafbfc', position: 'sticky', top: 56, zIndex: 50 }}>
+            {tabs.map(tab => (
+              <button key={tab.key} onClick={() => setMobileTab(tab.key)} style={{
+                flex: 1, padding: '13px 4px 11px', fontWeight: mobileTab === tab.key ? 700 : 500,
+                fontSize: 13, color: mobileTab === tab.key ? '#1a8fa8' : '#8A93B2',
+                background: 'none', border: 'none',
+                borderBottom: mobileTab === tab.key ? '2.5px solid #55D1E3' : '2.5px solid transparent',
+                marginBottom: -2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                fontFamily: 'Nunito, Arial, sans-serif',
+              }}>
+                {tab.label}
+                {tab.badge > 0 && (
+                  <span style={{ background: '#55D1E3', color: '#fff', borderRadius: 10, fontSize: 10, padding: '1px 5px', fontWeight: 700, lineHeight: 1.4 }}>
+                    {tab.badge}
+                  </span>
+                )}
+                {tab.done && <span style={{ color: '#45b688', fontWeight: 900, fontSize: 14 }}>✓</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Panel content */}
+          <div style={{ padding: '16px 14px', minHeight: 300 }}>
+            {mobileTab === 'form' && (
+              <AnovaForm
+                key={resetKey}
+                formData={formData} onUpdate={handleFormUpdate}
+                conversionInfo={conversionInfo} showConversionInfo={showConversionInfo}
+                selectedTest={selectedTest} onLmmLaunch={handleLmmLaunch}
+                isLoadingLmm={isLoadingLmm} interFactors={interFactors} intraFactors={intraFactors}
+                onRun={() => { const test = designMode === "variables" ? variablesTest : selectedTest; if (test && test !== "lmm") handleTestSelect(test); }}
+                onDesignModeChange={mode => { setDesignMode(mode); setSelectedTest(null); setResult(null); if (mode === "experimental") setVariablesTest(null); }}
+                onOpenTemplate={() => setSentenceModalOpen(true)}
+                onVariablesTestChange={test => { setVariablesTest(test); if (test) setSelectedTest(test); }}
+              />
+            )}
+            {mobileTab === 'tests' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <TestButtonsContent />
+              </div>
+            )}
+            {mobileTab === 'result' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <VizContent exportRef={exportAreaRefMobile} shareRef={designShareRefMobile} />
+              </div>
+            )}
+          </div>
+        </div>
+        <Modals />
+      </>
+    );
+  }
+
+  // ============================================================
+  //  DESKTOP LAYOUT
+  // ============================================================
   return (
   <>
     <div style={containerStyle}>
       {/* LEFT */}
       <div style={leftPanelStyle}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: "#8A93B2", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 12 }}>
-          {fr ? "Tests proposés" : "Proposed tests"}
-        </div>
-        {(selectedTest || possibleTests.length > 0 || designTouched) && (
-          <button onClick={handleReset} style={{
-            background: 'none', border: 'none', color: '#B0B8D4',
-            fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '2px 0 10px',
-            textDecoration: 'underline', alignSelf: 'flex-start',
-          }}>
-            {fr ? "réinitialiser" : "reset"}
-          </button>
-        )}
-
-        {designMode === "experimental" && (
-          possibleTests.length === 0 ? (
-            <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
-              {fr
-                ? <>Définissez vos facteurs à droite<br />— les tests correspondants apparaîtront ici.</>
-                : <>Define your factors on the right<br />— the matching tests will appear here.</>}
-            </div>
-          ) : (
-            possibleTests.map(test => (
-              <div key={test} style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-                <button style={testButtonStyle(selectedTest === test, false)} onClick={() => handleTestSelect(test)}>
-                  {testLabels[test] || test.toUpperCase()}
-                </button>
-                {testInfos[test] && (
-                  <span style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
-                    onClick={() => setInfoModal({ open: true, testKey: test })}>i</span>
-                )}
-              </div>
-            ))
-          )
-        )}
-
-        {designMode === "variables" && (
-          !variablesTest ? (
-            <div style={{ fontSize: 13, color: "#B0B8D4", fontStyle: "italic", lineHeight: 1.6 }}>
-              {fr
-                ? <>Sélectionnez ce que vous voulez étudier à droite<br />— le test correspondant apparaîtra ici.</>
-                : <>Select what you want to study on the right<br />— the matching test will appear here.</>}
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-              <button style={testButtonStyle(selectedTest === variablesTest, false)} onClick={() => handleTestSelect(variablesTest)}>
-                {testLabels[variablesTest] || variablesTest.toUpperCase()}
-              </button>
-              {testInfos[variablesTest] && (
-                <span style={{ marginLeft: 7, cursor: "pointer", color: "#55D1E3", fontSize: 17, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}
-                  onClick={() => setInfoModal({ open: true, testKey: variablesTest })}>i</span>
-              )}
-            </div>
-          )
-        )}
+        <TestButtonsContent />
       </div>
 
       {/* CENTER */}
       <div style={centerPanelStyle} ref={centerPanelRef}>
-
-        {selectedTest ? (
-          <>
-            {/* Exportable area: design + results, cropped tight */}
-            <div ref={exportAreaRef} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%' }}>
-
-              {/* Design viz — also has its own ref for design-only share */}
-              <div ref={designShareRef} style={{ background: '#fff', borderRadius: 14, padding: '14px 10px 10px', width: '100%', boxSizing: 'border-box' }}>
-                <DesignVisualizer
-                  groupFactors={interFactors} levelFactors={intraFactors}
-                  selectedTest={selectedTest} testTitle={testTitle}
-                  nPerGroup={result?.n_per_group ?? null} formData={formData} result={result}
-                />
-                {/* SimpleSize branding for design share */}
-                <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #f0f3f8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 10, color: '#C8D0E7', fontWeight: 600 }}>
-                    {fr ? "Conçu avec SimpleSize" : "Designed with SimpleSize"}
-                  </span>
-                  <span style={{ fontSize: 10, color: '#C8D0E7' }}>simplesize.science</span>
-                </div>
-              </div>
-
-              {/* Results appear after calculation */}
-              {result?.n_per_group != null && (
-                <>
-                  {selectedTest === "lmm" && result?.estimated_power != null && (
-                    <div style={{ width: '100%', background: "#f0f8ff", border: "1px solid #b3d8f0", borderRadius: 8, padding: "10px 16px", fontSize: 13, color: "#334" }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#1a6a9a" }}>
-                        {fr ? "Résultat simulation LMM" : "LMM simulation result"}
-                      </div>
-                      <div>
-                        <b>{fr ? "N par groupe :" : "N per group:"}</b> {result.n_per_group}
-                        &nbsp;·&nbsp;
-                        <b>{fr ? "Puissance simulée :" : "Simulated power:"}</b> {Math.round(result.estimated_power * 100)}%
-                        &nbsp;·&nbsp;
-                        <b>{fr ? "Simulations :" : "Simulations:"}</b> {result.n_sim} ({result.converged} {fr ? "convergées" : "converged"})
-                      </div>
-                      {result.message && <div style={{ marginTop: 5, color: "#555", fontStyle: "italic" }}>{result.message}</div>}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Action buttons — outside exportable area */}
-            <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button style={actionBtnStyle('#f0fbfd', '#b3e8f0', '#1a8fa8')} onClick={handleShareDesign}>
-                &#128247; {fr ? "Partager ce design (JPG)" : "Share design (JPG)"}
-              </button>
-              {result?.n_per_group != null && (
-                <button style={actionBtnStyle('#fff', '#E0E7EF', '#2F344A')} onClick={handleExportJpeg}>
-                  &#8659; {fr ? "Exporter figure + résultats" : "Export figure + results"}
-                </button>
-              )}
-            </div>
-          </>
-        ) : (
-          <div style={{ color: "#C8D0E7", fontSize: 15, fontStyle: "italic", marginTop: 40, textAlign: "center", lineHeight: 1.8 }}>
-            {fr
-              ? <>Définissez votre design à droite<br />et sélectionnez un test pour le visualiser ici.</>
-              : <>Define your design on the right<br />and select a test to visualize it here.</>}
-          </div>
-        )}
+        <VizContent exportRef={exportAreaRef} shareRef={designShareRef} />
       </div>
 
       {/* RIGHT */}
@@ -650,31 +770,7 @@ function HomePage() {
       </div>
     </div>
 
-    {/* TEST INFO MODAL */}
-    {infoModal.open && testInfos[infoModal.testKey] && (
-      <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-        <div style={{ background: "#fff", borderRadius: 17, padding: "28px 32px 20px 32px", minWidth: 370, maxWidth: 440, boxShadow: "0 2px 24px #2f344a33", position: "relative" }}>
-          <div style={{ fontSize: 21, fontWeight: 700, marginBottom: 15, color: "#2F344A" }}>{testInfos[infoModal.testKey].title}</div>
-          <div style={{ fontSize: 16, color: "#344", lineHeight: 1.5 }}>{testInfos[infoModal.testKey].content}</div>
-          <button onClick={() => setInfoModal({ open: false, testKey: null })} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", fontWeight: 800, fontSize: 18, color: "#B0B8D4", cursor: "pointer" }}>×</button>
-        </div>
-      </div>
-    )}
-
-    {/* SENTENCE TEMPLATE MODAL */}
-    {sentenceModalOpen && (
-      <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900 }}>
-        <PlanSentenceFiller
-          formData={formData}
-          onApply={(data) => {
-            setSentenceModalOpen(false);
-            handleFormUpdate(data);
-            if (data._testType) { setDesignMode("variables"); setVariablesTest(data._testType); setSelectedTest(data._testType); }
-          }}
-          onCancel={() => setSentenceModalOpen(false)}
-        />
-      </div>
-    )}
+    <Modals />
   </>
   );
 }

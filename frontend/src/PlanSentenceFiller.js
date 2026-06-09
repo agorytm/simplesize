@@ -129,7 +129,7 @@ function PlanSentenceFiller({ formData = {}, onApply, onCancel }) {
   const effLarge = fr ? "grand" : "large";
 
   return (
-    <div style={{ background: "#fff", borderRadius: 17, padding: "28px 34px 22px 34px", minWidth: 500, maxWidth: 600, boxShadow: "0 2px 32px #2f344a28", fontSize: 15 }}>
+    <div style={{ background: "#fff", borderRadius: 17, padding: "28px 34px 22px 34px", minWidth: "min(500px, calc(100vw - 24px))", maxWidth: 600, width: "100%", boxShadow: "0 2px 32px #2f344a28", fontSize: 15 }}>
       <div style={{ marginBottom: 18, fontWeight: 700, fontSize: 19 }}>
         {fr ? "Construire votre design" : "Build your study design"}
       </div>

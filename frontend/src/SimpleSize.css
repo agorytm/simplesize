@@ -49,3 +49,74 @@ label {
 ::placeholder {
   color: #b0b8d4;
 }
+
+/* ============================================================
+   MOBILE RESPONSIVE — global fixes
+   ============================================================ */
+
+@media (max-width: 700px) {
+
+  /* Navbar */
+  .ss-navbar {
+    padding: 0 12px !important;
+  }
+
+  /* Page wrappers — all pages */
+  .ss-page {
+    padding: 16px 14px !important;
+    max-width: 100% !important;
+  }
+
+  /* Hero / header text */
+  .ss-hero-title {
+    font-size: 1.6rem !important;
+  }
+
+  /* Cards grid → single column */
+  .ss-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Lexique accordion */
+  .ss-lexique-term {
+    font-size: 15px !important;
+  }
+
+  /* Tutorial steps */
+  .ss-tutorial-step {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  /* Community / Gallery cards */
+  .ss-gallery-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Sentence template modal — full-width bottom sheet feel */
+  .ss-sentence-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Make inputs / selects full-width inside forms */
+  .ss-form-row {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  /* Smaller font in results boxes */
+  .ss-result-box {
+    font-size: 13px !important;
+  }
+
+  /* DesignVisualizer SVG — prevent overflow */
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
