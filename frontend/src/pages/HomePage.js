@@ -655,7 +655,7 @@ function HomePage() {
         </div>
       )}
       {sentenceModalOpen && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: isMobile ? 'flex-end' : "center", justifyContent: "center", zIndex: 900 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(47,52,74,0.17)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 900, overflowY: "auto", padding: isMobile ? "56px 0 16px" : "40px 16px", boxSizing: "border-box" }}>
           <PlanSentenceFiller
             formData={formData}
             onApply={(data) => {
