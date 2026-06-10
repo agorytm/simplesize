@@ -5,7 +5,7 @@ Calcul de taille d'échantillon et puissance pour tests fréquents en recherche.
 
 from statsmodels.stats.power import TTestIndPower, FTestAnovaPower, TTestPower
 from statsmodels.stats.power import NormalIndPower
-from scipy.stats import ncf, ncx2, norm, t as t_dist
+from scipy.stats import ncf, ncx2, norm, t as t_dist, chi2 as _chi2_dist
 import numpy as np
 import pandas as pd
 from statsmodels.formula.api import mixedlm
@@ -33,10 +33,10 @@ def _bisect(f, lo, hi, target, n_iter=60):
 # ─────────────────────────────────────────────
 
 def gpower_anova_rm_solver(f, alpha, power, num_measurements, corr=0.5, epsilon=1.0):
-    df_num = num_measurements - 1
+    df_num = (num_measurements - 1) * epsilon
 
     def power_fn(n):
-        df_den = (n - 1) * df_num * epsilon
+        df_den = (n - 1) * (num_measurements - 1) * epsilon
         lam = n * f ** 2 * num_measurements / (1 - corr)
         f_crit = ncf.ppf(1 - alpha, df_num, df_den, 0)
         return 1 - ncf.cdf(f_crit, df_num, df_den, lam)
@@ -48,8 +48,8 @@ def gpower_anova_rm_solver(f, alpha, power, num_measurements, corr=0.5, epsilon=
 
 
 def gpower_anova_rm_mde_solver(n, alpha, power, num_measurements, corr=0.5, epsilon=1.0):
-    df_num = num_measurements - 1
-    df_den = (n - 1) * df_num * epsilon
+    df_num = (num_measurements - 1) * epsilon
+    df_den = (n - 1) * (num_measurements - 1) * epsilon
 
     def power_fn(f):
         lam = n * f ** 2 * num_measurements / (1 - corr)
@@ -93,20 +93,59 @@ def gpower_anova_mixed_mde_solver(n_total, alpha, power, n_groups, n_levels, cor
 
 
 # ─────────────────────────────────────────────
-#  LMM SIMULATION
+#  LMM SIMULATION  (v2 — intercept aléatoire corrigé + LRT)
 # ─────────────────────────────────────────────
 
+def _lmm_fixed_effect_pvalue(df, target, method="lrt"):
+    """
+    Calcule la p-value du test sur l'effet fixe cible.
+    method="wald"  : z de Wald (rapide, anticonservative à petit N)
+    method="lrt"   : test du rapport de vraisemblance (ML vs modèle réduit)
+    """
+    key_map = {
+        "interaction": "group[T.1]:level[T.1]",
+        "group":       "group[T.1]",
+        "level":       "level[T.1]",
+    }
+    if method == "wald":
+        m = mixedlm("y ~ group * level", df, groups=df["subject"]).fit(reml=True, disp=False)
+        return m.pvalues.get(key_map.get(target, ""), 1.0)
+
+    # LRT : full vs reduced en ML (reml=False requis pour comparaison de vraisemblances)
+    full = mixedlm("y ~ group * level", df, groups=df["subject"]).fit(reml=False, disp=False)
+    reduced_formula = {
+        "interaction": "y ~ group + level",
+        "group":       "y ~ level",
+        "level":       "y ~ group",
+    }.get(target, "y ~ group + level")
+    reduced = mixedlm(reduced_formula, df, groups=df["subject"]).fit(reml=False, disp=False)
+    lr = 2.0 * (full.llf - reduced.llf)
+    ddf = full.df_modelwc - reduced.df_modelwc
+    if ddf <= 0 or lr < 0:
+        return 1.0
+    return float(_chi2_dist.sf(lr, ddf))
+
+
 def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
-                          effect_size=0.25, n_sim=100,
-                          alpha=0.05, target="interaction"):
-    np.random.seed(42)
+                          effect_size=0.25, n_sim=100, alpha=0.05,
+                          target="interaction",
+                          sd_subject=0.5, sd_resid=1.0,
+                          test_method="lrt", seed=None):
+    """
+    Simulation Monte-Carlo pour LMM.
+    - Vrai intercept aléatoire : un tirage par sujet (corrige le bug v1).
+    - LRT par défaut ; Wald disponible comme option rapide.
+    - seed optionnel ; RNG jamais remis à 42 en dur.
+    """
+    rng = np.random.default_rng(seed)
     rejections = 0
     converged = 0
+    n_subjects = n_per_group * n_group
 
     for _ in range(n_sim):
-        group  = np.repeat(np.arange(n_group), n_per_group * n_level)
-        level  = np.tile(np.repeat(np.arange(n_level), n_per_group), n_group)
-        subject = np.tile(np.arange(n_per_group * n_group), n_level)
+        group   = np.repeat(np.arange(n_group), n_per_group * n_level)
+        level   = np.tile(np.repeat(np.arange(n_level), n_per_group), n_group)
+        subject = np.tile(np.arange(n_subjects), n_level)
 
         mu = np.zeros((n_group, n_level))
         if target == "interaction" and n_group >= 2 and n_level >= 2:
@@ -116,25 +155,23 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
         elif target == "level":
             mu[:, 1] = effect_size
 
+        # Vrai intercept aléatoire : UN tirage par sujet, rediffusé sur ses mesures
+        subject_re = rng.normal(0, sd_subject, size=n_subjects)
         y = (mu[group, level]
-             + np.random.normal(0, 1, size=len(group))
-             + np.random.normal(0, 0.5, size=len(group)))  # random subject effect
+             + subject_re[subject]
+             + rng.normal(0, sd_resid, size=len(group)))
 
-        df = pd.DataFrame({"group": group.astype(str),
-                           "level": level.astype(str),
+        df = pd.DataFrame({"group":   group.astype(str),
+                           "level":   level.astype(str),
                            "subject": subject.astype(str),
-                           "y": y})
+                           "y":       y})
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
-                mdf = mixedlm("y ~ group * level", df, groups=df["subject"]).fit(reml=True)
+                pval = _lmm_fixed_effect_pvalue(df, target, test_method)
                 converged += 1
-                key_map = {"interaction": "group[T.1]:level[T.1]",
-                           "group": "group[T.1]",
-                           "level": "level[T.1]"}
-                pval = mdf.pvalues.get(key_map.get(target, ""), 1.0)
-                if pval < alpha:
+                if pval is not None and pval < alpha:
                     rejections += 1
             except Exception:
                 pass
@@ -145,24 +182,28 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
 
 
 def lmm_power_solver(f, alpha, power, n_group, n_level, target="interaction",
-                     min_n=3, max_n=150, step=1):
+                     min_n=3, max_n=150, step=1,
+                     sd_subject=0.5, test_method="lrt", n_sim_override=None):
     for n in range(min_n, max_n + 1, step):
-        n_sim = 60 if n < 30 else 40
+        n_sim = n_sim_override or (60 if n < 30 else 40)
         pw, conv = lmm_power_simulation(
             n_group=n_group, n_level=n_level, n_per_group=n,
-            effect_size=f, n_sim=n_sim, alpha=alpha, target=target
+            effect_size=f, n_sim=n_sim, alpha=alpha, target=target,
+            sd_subject=sd_subject, test_method=test_method
         )
         if pw >= power and conv >= max(15, n_sim // 3):
             return n
     return max_n
 
 
-def lmm_mde_solver(n_per_group, alpha, power, n_group, n_level, target="interaction"):
+def lmm_mde_solver(n_per_group, alpha, power, n_group, n_level,
+                   target="interaction", sd_subject=0.5, test_method="lrt"):
     """Cherche le MDE par dichotomie sur f."""
-    def pw_fn(f):
+    def pw_fn(f_val):
         pw, conv = lmm_power_simulation(
             n_group=n_group, n_level=n_level, n_per_group=n_per_group,
-            effect_size=f, n_sim=50, alpha=alpha, target=target
+            effect_size=f_val, n_sim=50, alpha=alpha, target=target,
+            sd_subject=sd_subject, test_method=test_method
         )
         return pw if conv >= 15 else 0
 
@@ -343,6 +384,14 @@ def choose_statistical_method(data):
         f2_val       = float(data.get("f2", 0.15))
         two_tailed   = bool(data.get("two_tailed", True))
         lmm_target   = data.get("lmm_target", "interaction")
+        sd_subject   = float(data.get("sd_subject", 0.5))
+        test_method  = data.get("test_method", "lrt")
+        n_sim_user   = data.get("n_sim", None)
+        if n_sim_user is not None:
+            try:
+                n_sim_user = int(n_sim_user)
+            except (TypeError, ValueError):
+                n_sim_user = None
 
         # ── MODE MDE ──────────────────────────────────────────────────────────
         if mde_mode and n_given is not None:
@@ -381,9 +430,11 @@ def choose_statistical_method(data):
 
             elif selected_test == "lmm":
                 f_val = lmm_mde_solver(int(n), alpha, power, n_group=n_groups or 2,
-                                       n_level=n_levels or 2, target=lmm_target)
+                                       n_level=n_levels or 2, target=lmm_target,
+                                       sd_subject=sd_subject, test_method=test_method)
                 return {"mde": f_val, "test": "lmm", "label": "Cohen's f",
-                        "interpretation": _interpret_f(f_val), "random_factor": random_factor}
+                        "interpretation": _interpret_f(f_val), "random_factor": random_factor,
+                        "sd_subject": sd_subject, "test_method": test_method}
 
             elif selected_test == "correlation":
                 r = correlation_mde_solver(int(n), alpha, power, two_tailed)
@@ -438,16 +489,24 @@ def choose_statistical_method(data):
         elif selected_test == "lmm":
             n_group = n_groups if n_groups >= 2 else 2
             n_level = n_levels if n_levels >= 2 else 2
-            found_n = lmm_power_solver(f, alpha, power, n_group, n_level, target=lmm_target)
-            pw_final, _ = lmm_power_simulation(
+            found_n = lmm_power_solver(f, alpha, power, n_group, n_level, target=lmm_target,
+                                       sd_subject=sd_subject, test_method=test_method,
+                                       n_sim_override=n_sim_user)
+            n_sim_final = n_sim_user or 60
+            pw_final, conv_final = lmm_power_simulation(
                 n_group=n_group, n_level=n_level, n_per_group=found_n,
-                effect_size=f, n_sim=60, alpha=alpha, target=lmm_target
+                effect_size=f, n_sim=n_sim_final, alpha=alpha, target=lmm_target,
+                sd_subject=sd_subject, test_method=test_method
             )
             return {
                 "test": "lmm",
                 "n_per_group": found_n,
                 "random_factor": random_factor,
                 "estimated_power": round(pw_final, 3),
+                "n_sim": n_sim_final,
+                "converged": conv_final,
+                "sd_subject": sd_subject,
+                "test_method": test_method,
                 "message": f"Puissance estimée par simulation : {round(pw_final*100)}% avec n={found_n}/groupe.",
                 "interpretation": _interpret_f(f)
             }
@@ -507,4 +566,6 @@ def _interpret_w(w):
 
 def _interpret_f2(f2):
     if f2 < 0.02: return {"level": "trivial",  "label": "Très petit effet (f² < 0.02)"}
-    if f2 < 0.15: return {"level": "small",    "label": "Petit effet (0.02 ≤ f² <
+    if f2 < 0.15: return {"level": "small",    "label": "Petit effet (0.02 ≤ f² < 0.15)"}
+    if f2 < 0.35: return {"level": "medium",   "label": "Effet moyen (0.15 ≤ f² < 0.35)"}
+    return              {"level": "large",    "label": "Grand effet (f² ≥ 0.35)"}

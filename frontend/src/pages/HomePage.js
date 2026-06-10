@@ -468,7 +468,9 @@ function HomePage() {
       power: parseFloat((formData.power || "0.8").replace(",", ".")),
       f: parseFloat((formData.f || "0.25").replace(",", ".")),
       factors, group_levels, level_levels, interFactors, intraFactors,
-      selected_test: "lmm", random_factor: formData.randomFactor, n_sim: formData.nSimulations || 50
+      selected_test: "lmm", random_factor: formData.randomFactor, n_sim: formData.nSimulations || 50,
+      sd_subject: parseFloat((formData.sdSubject || "0.5").toString().replace(",",".")),
+      test_method: formData.testMethod || "lrt"
     };
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {

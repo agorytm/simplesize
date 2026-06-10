@@ -25,6 +25,9 @@ function AnovaForm({
   const [nPredictors, setNPredictors] = useState(formData.n_predictors || "1");
   const [f2, setF2] = useState(formData.f2 || "0.15");
   const [randomFactor, setRandomFactor] = useState(formData.randomFactor || "");
+  const [sdSubject, setSdSubject] = useState(formData.sdSubject || "0.5");
+  const [testMethod, setTestMethod] = useState(formData.testMethod || "lrt");
+  const [lmmAdvanced, setLmmAdvanced] = useState(false);
 
   const [designTab, setDesignTab] = useState("experimental");
   const [varType, setVarType] = useState(null);
@@ -43,6 +46,8 @@ function AnovaForm({
     setNPredictors(formData.n_predictors || "1");
     setF2(formData.f2 || "0.15");
     setRandomFactor(formData.randomFactor || "");
+    if (formData.sdSubject) setSdSubject(formData.sdSubject);
+    if (formData.testMethod) setTestMethod(formData.testMethod);
     if (formData.interFactors) setInterFactors(formData.interFactors);
     if (formData.intraFactors) setIntraFactors(formData.intraFactors);
   }, [formData]);
@@ -52,8 +57,9 @@ function AnovaForm({
       ...formData, interFactors, intraFactors, alpha, power, f, r,
       chi2_df: chi2Df, n_predictors: nPredictors, f2, randomFactor,
       nSimulations: formData.nSimulations || 50,
+      sdSubject, testMethod,
     });
-  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, formData.nSimulations]);
+  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, sdSubject, testMethod, formData.nSimulations]);
 
   useEffect(() => {
     if (!hasSample) { setNGiven(""); setMDE(null); setMdeError(""); }
@@ -265,26 +271,61 @@ function AnovaForm({
           </div>
 
           {selectedTest === "lmm" && (
-            <label style={{ fontWeight: 500, fontSize: 14, marginBottom: 6 }}>
-              {fr ? "Simulations :" : "Simulations:"}&nbsp;
-              <select value={formData.nSimulations || 50}
-                onChange={e => onUpdate({ ...formData, nSimulations: Number(e.target.value) })}
-                style={{ marginLeft: 7, padding: "4px 10px", borderRadius: 7, border: "1px solid #ddd", fontSize: 14 }}>
-                <option value={50}>{fr ? "rapide (50)" : "fast (50)"}</option>
-                <option value={200}>{fr ? "précis (200)" : "precise (200)"}</option>
-                <option value={500}>{fr ? "très précis (500)" : "very precise (500)"}</option>
-              </select>
-            </label>
-          )}
-
-          {selectedTest === "lmm" && (
-            <div style={{ margin: "10px 0 10px 0", padding: "13px 13px 6px 13px", background: "#f6faff", borderRadius: 10, border: "1.3px solid #98d9ed" }}>
+            <div style={{ margin: "10px 0 10px 0", padding: "13px 13px 10px 13px", background: "#f6faff", borderRadius: 10, border: "1.3px solid #98d9ed" }}>
+              {/* Facteur aléatoire */}
               <label style={{ ...labelStyle, fontWeight: 600, color: "#209" }}>
                 {fr ? "Facteur aléatoire (ex : participant)" : "Random factor (e.g., participant)"}
               </label>
               <input type="text" value={randomFactor} onChange={e => setRandomFactor(e.target.value)}
                 style={{ ...inputStyle, width: 140 }} placeholder={fr ? "participant" : "participant"} />
-              <div style={{ marginTop: 13, marginBottom: 2 }}>
+
+              {/* Simulations */}
+              <label style={{ fontWeight: 500, fontSize: 13, display: "block", margin: "10px 0 4px" }}>
+                {fr ? "Précision de simulation :" : "Simulation precision:"}&nbsp;
+                <select value={formData.nSimulations || 50}
+                  onChange={e => onUpdate({ ...formData, nSimulations: Number(e.target.value) })}
+                  style={{ marginLeft: 4, padding: "3px 8px", borderRadius: 7, border: "1px solid #ddd", fontSize: 13 }}>
+                  <option value={50}>{fr ? "rapide (50 simul.)" : "fast (50 simul.)"}</option>
+                  <option value={200}>{fr ? "précis (200 simul.)" : "precise (200 simul.)"}</option>
+                  <option value={500}>{fr ? "très précis (500 simul.)" : "very precise (500 simul.)"}</option>
+                </select>
+              </label>
+              <div style={{ fontSize: 11, color: "#9aabbc", marginBottom: 8 }}>
+                {fr ? "⚠ Plus de simulations = calcul plus long (200+ peut prendre 10–30 s)." : "⚠ More simulations = longer calculation (200+ may take 10–30 s)."}
+              </div>
+
+              {/* Paramètres avancés (repliables) */}
+              <button type="button" onClick={() => setLmmAdvanced(v => !v)}
+                style={{ background: "none", border: "none", color: "#55D1E3", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: "2px 0 6px", display: "flex", alignItems: "center", gap: 4 }}>
+                {lmmAdvanced ? "▾" : "▸"} {fr ? "Paramètres avancés" : "Advanced parameters"}
+              </button>
+              {lmmAdvanced && (
+                <div style={{ padding: "8px 10px", background: "#eef7fc", borderRadius: 8, marginBottom: 6 }}>
+                  {/* SD intercept sujet */}
+                  <label style={{ fontWeight: 500, fontSize: 13, display: "block", marginBottom: 6 }}>
+                    {fr ? "SD intercept sujet :" : "Subject intercept SD:"}
+                    <input type="number" step="0.1" min="0.1" max="5"
+                      value={sdSubject}
+                      onChange={e => setSdSubject(e.target.value)}
+                      style={{ ...inputStyle, width: 70, marginLeft: 8, fontSize: 13 }} />
+                    <span style={{ fontSize: 11, color: "#8aabbc", marginLeft: 6 }}>
+                      {fr ? "(défaut 0.5 — variabilité inter-sujets)" : "(default 0.5 — between-subject variability)"}
+                    </span>
+                  </label>
+                  {/* Méthode de test */}
+                  <label style={{ fontWeight: 500, fontSize: 13, display: "block" }}>
+                    {fr ? "Méthode de test :" : "Test method:"}
+                    <select value={testMethod} onChange={e => setTestMethod(e.target.value)}
+                      style={{ marginLeft: 8, padding: "3px 8px", borderRadius: 7, border: "1px solid #ddd", fontSize: 13 }}>
+                      <option value="lrt">{fr ? "LRT — rapport de vraisemblance (recommandé)" : "LRT — likelihood ratio (recommended)"}</option>
+                      <option value="wald">{fr ? "Wald z (rapide, moins précis à petit N)" : "Wald z (fast, less precise at small N)"}</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              {/* Bouton lancement */}
+              <div style={{ marginTop: 10, marginBottom: 2 }}>
                 <button type="button"
                   style={{ background: isLoadingLmm ? "#E0E7EF" : "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 15, padding: "10px 22px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: isLoadingLmm ? "not-allowed" : "pointer", boxShadow: "0 2px 10px #55d1e326", minWidth: 54 }}
                   onClick={() => { if (!isLoadingLmm && onLmmLaunch) onLmmLaunch(); }}
