@@ -30,6 +30,9 @@ function AnovaForm({
   const [epsilon, setEpsilon] = useState(formData.epsilon !== undefined ? String(formData.epsilon) : "1.0");
   const [testMethod, setTestMethod] = useState(formData.testMethod || "lrt");
   const [lmmAdvanced, setLmmAdvanced] = useState(false);
+  const [missingRate, setMissingRate] = useState(formData.missingRate || 0);
+  const [nComparisons, setNComparisons] = useState(formData.nComparisons || 1);
+  const [mcMethod, setMcMethod] = useState(formData.mcMethod || "bonferroni");
 
   const [designTab, setDesignTab] = useState("experimental");
   const [varType, setVarType] = useState(null);
@@ -50,6 +53,9 @@ function AnovaForm({
     setRandomFactor(formData.randomFactor || "");
     if (formData.sdSubject) setSdSubject(formData.sdSubject);
     if (formData.corr !== undefined) setCorr(String(formData.corr));
+    if (formData.nComparisons !== undefined) setNComparisons(formData.nComparisons);
+    if (formData.missingRate !== undefined) setMissingRate(formData.missingRate);
+    if (formData.mcMethod !== undefined) setMcMethod(formData.mcMethod);
     if (formData.epsilon !== undefined) setEpsilon(String(formData.epsilon));
     if (formData.testMethod) setTestMethod(formData.testMethod);
     if (formData.interFactors) setInterFactors(formData.interFactors);
@@ -61,9 +67,9 @@ function AnovaForm({
       ...formData, interFactors, intraFactors, alpha, power, f, r,
       chi2_df: chi2Df, n_predictors: nPredictors, f2, randomFactor,
       nSimulations: formData.nSimulations || 50,
-      sdSubject, testMethod, corr, epsilon,
+      sdSubject, testMethod, corr, epsilon, nComparisons, mcMethod, missingRate,
     });
-  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, sdSubject, testMethod, corr, epsilon, formData.nSimulations]);
+  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, sdSubject, testMethod, corr, epsilon, nComparisons, mcMethod, missingRate, formData.nSimulations]);
 
   useEffect(() => {
     if (!hasSample) { setNGiven(""); setMDE(null); setMdeError(""); }
@@ -86,7 +92,8 @@ function AnovaForm({
       n_predictors: parseInt(nPredictors),
       group_levels: interFactors[0]?.levels || [], level_levels: intraFactors[0]?.levels || [],
       interFactors, intraFactors, selected_test: selectedTest, mde_mode: true, n_given: Number(nGiven),
-      corr: parseFloat(corr), epsilon: parseFloat(epsilon)
+      corr: parseFloat(corr), epsilon: parseFloat(epsilon),
+      n_comparisons: nComparisons, mc_method: mcMethod
     };
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
@@ -299,6 +306,33 @@ function AnovaForm({
                 {fr ? "⚠ Plus de simulations = calcul plus long (200+ peut prendre 10–30 s)." : "⚠ More simulations = longer calculation (200+ may take 10–30 s)."}
               </div>
 
+              {/* Mesures manquantes */}
+              <label style={{ fontWeight: 500, fontSize: 13, display: "block", marginTop: 4, marginBottom: 4 }}>
+                {fr ? "Mesures manquantes prévues :" : "Expected missing measurements:"}
+                <span title={fr
+                  ? "Le LMM peut analyser des données incomplètes (contrairement à l'ANOVA RM). Si vous prévoyez que certains participants manqueront des séances, indiquez ce pourcentage. La simulation supprimera aléatoirement cette proportion de mesures pour estimer la puissance réelle."
+                  : "LMM can handle incomplete data (unlike RM ANOVA). If you expect some participants to miss sessions, enter that percentage. The simulation will randomly drop that proportion of measurements to estimate real-world power."}
+                  style={{ cursor: "help", color: "#55D1E3", fontSize: 12, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 15, height: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", marginLeft: 6, flexShrink: 0, verticalAlign: "middle" }}>
+                  i
+                </span>
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <input type="range" min={0} max={50} step={5}
+                  value={Math.round(missingRate * 100)}
+                  onChange={e => setMissingRate(Number(e.target.value) / 100)}
+                  style={{ flex: 1, accentColor: "#55D1E3" }} />
+                <span style={{ fontWeight: 700, color: missingRate > 0.3 ? "#e67e22" : "#1a8fa8", minWidth: 36, fontSize: 14 }}>
+                  {Math.round(missingRate * 100)}%
+                </span>
+              </div>
+              {missingRate > 0 && (
+                <div style={{ fontSize: 11, color: "#7a9abc", marginBottom: 4 }}>
+                  {fr
+                    ? `→ Le LMM utilisera les données partielles (${Math.round((1 - missingRate) * 100)}% des mesures disponibles) — avantage clé vs ANOVA RM.`
+                    : `→ LMM will use partial data (${Math.round((1 - missingRate) * 100)}% of measurements available) — key advantage over RM ANOVA.`}
+                </div>
+              )}
+
               {/* Paramètres avancés (repliables) */}
               <button type="button" onClick={() => setLmmAdvanced(v => !v)}
                 style={{ background: "none", border: "none", color: "#55D1E3", fontWeight: 600, fontSize: 12, cursor: "pointer", padding: "2px 0 6px", display: "flex", alignItems: "center", gap: 4 }}>
@@ -339,6 +373,47 @@ function AnovaForm({
                   {isLoadingLmm ? (fr ? "Calcul..." : "Calculating...") : (fr ? "Lancer le calcul LMM" : "Run LMM calculation")}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* ── COMPARAISONS MULTIPLES ───────────────────────────────────── */}
+          {selectedTest && selectedTest !== "lmm" && (
+            <div style={{ margin: "6px 0 4px 0", padding: "10px 13px", background: "#fffbf0", borderRadius: 10, border: "1.3px solid #f9d689" }}>
+              <label style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 6, color: "#b4880a" }}>
+                {fr ? "🔁 Comparaisons multiples" : "🔁 Multiple comparisons"}
+                <span title={fr
+                  ? "Si vous réalisez plusieurs tests statistiques sur les mêmes données, le risque de faux positifs augmente. Une correction ajuste le seuil α en conséquence. Ex : 5 comparaisons avec Bonferroni → α effectif = 0,05/5 = 0,01."
+                  : "If you run multiple tests on the same data, the false-positive rate increases. A correction adjusts the effective α. E.g., 5 comparisons with Bonferroni → effective α = 0.05/5 = 0.01."}
+                  style={{ cursor: "help", color: "#b4880a", fontSize: 12, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #f9d689", width: 15, height: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", marginLeft: 6, verticalAlign: "middle" }}>
+                  i
+                </span>
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 13, fontWeight: 500 }}>
+                  {fr ? "Nombre de tests :" : "Number of tests:"}
+                  <input type="number" min={1} max={100} value={nComparisons}
+                    onChange={e => setNComparisons(Math.max(1, parseInt(e.target.value) || 1))}
+                    style={{ width: 60, marginLeft: 8, padding: "4px 7px", borderRadius: 6, border: "1px solid #f0c030", fontSize: 13 }} />
+                </label>
+                {nComparisons > 1 && (
+                  <label style={{ fontSize: 13, fontWeight: 500 }}>
+                    {fr ? "Correction :" : "Correction:"}
+                    <select value={mcMethod} onChange={e => setMcMethod(e.target.value)}
+                      style={{ marginLeft: 8, padding: "4px 8px", borderRadius: 6, border: "1px solid #f0c030", fontSize: 13 }}>
+                      <option value="bonferroni">{fr ? "Bonferroni (conservateur)" : "Bonferroni (conservative)"}</option>
+                      <option value="holm">{fr ? "Holm-Bonferroni (moins strict)" : "Holm–Bonferroni (less strict)"}</option>
+                      <option value="none">{fr ? "Aucune correction" : "No correction"}</option>
+                    </select>
+                  </label>
+                )}
+              </div>
+              {nComparisons > 1 && mcMethod !== "none" && (
+                <div style={{ fontSize: 12, color: "#a07010", marginTop: 6 }}>
+                  {fr
+                    ? `→ α effectif utilisé pour le calcul : ${(parseFloat(alpha.replace(",",".")) / nComparisons).toFixed(4)} (α/${nComparisons})`
+                    : `→ Effective α used for calculation: ${(parseFloat(alpha.replace(",",".")) / nComparisons).toFixed(4)} (α/${nComparisons})`}
+                </div>
+              )}
             </div>
           )}
 

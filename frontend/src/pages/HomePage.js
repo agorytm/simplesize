@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AnovaForm from '../AnovaForm';
 import DesignVisualizer from '../DesignVisualizer';
+import PowerCurve from '../PowerCurve';
+import MethodsParagraph from '../MethodsParagraph';
+import usePermalink, { decodeConfig } from '../usePermalink';
 import { toJpeg } from 'html-to-image';
 import '../SimpleSize.css';
 import PlanSentenceFiller from '../PlanSentenceFiller';
@@ -8,6 +11,24 @@ import { useTranslation } from 'react-i18next';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 700);
+  // Lire cfg depuis URL au chargement
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const cfg = p.get('cfg');
+      if (cfg) {
+        const decoded = decodeConfig(cfg);
+        if (decoded) {
+          const { _test, ...fd } = decoded;
+          setFormData(fd);
+          if (_test) setSelectedTest(_test);
+          // Nettoyer l'URL sans recharger
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []); // eslint-disable-line
+
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 700);
     window.addEventListener('resize', handler);
@@ -19,6 +40,7 @@ function useIsMobile() {
 function HomePage() {
   const { i18n } = useTranslation();
   const fr = i18n.language === 'fr';
+  const { copyPermalink, permalinkCopied } = usePermalink(formData, selectedTest);
   const isMobile = useIsMobile();
   const [mobileTab, setMobileTab] = useState('form');
 
@@ -447,7 +469,9 @@ function HomePage() {
       two_tailed: true, factors, group_levels, level_levels,
       interFactors, intraFactors, selected_test: test,
       corr: parseFloat((formData.corr || "0.5").toString()),
-      epsilon: parseFloat((formData.epsilon || "1.0").toString())
+      epsilon: parseFloat((formData.epsilon || "1.0").toString()),
+      n_comparisons: parseInt(formData.nComparisons || 1),
+      mc_method: formData.mcMethod || "bonferroni"
     };
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
@@ -472,7 +496,8 @@ function HomePage() {
       factors, group_levels, level_levels, interFactors, intraFactors,
       selected_test: "lmm", random_factor: formData.randomFactor, n_sim: formData.nSimulations || 50,
       sd_subject: parseFloat((formData.sdSubject || "0.5").toString().replace(",",".")),
-      test_method: formData.testMethod || "lrt"
+      test_method: formData.testMethod || "lrt",
+      missing_rate: parseFloat(formData.missingRate || 0)
     };
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
@@ -627,9 +652,18 @@ function HomePage() {
             </div>
           )}
         </div>
+        {selectedTest && selectedTest !== 'lmm' && (
+          <div style={{ width: '100%', background: '#fff', borderRadius: 12, border: '1.5px solid #e0e7ef', padding: '12px 14px', marginTop: 4 }}>
+            <PowerCurve formData={formData} selectedTest={selectedTest} result={result} />
+          </div>
+        )}
+        <MethodsParagraph formData={formData} result={result} selectedTest={selectedTest} />
         <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
           <button style={actionBtnStyle('#f0fbfd', '#b3e8f0', '#1a8fa8')} onClick={handleShareDesign}>
             &#128247; {fr ? "Partager ce design (JPG)" : "Share design (JPG)"}
+          </button>
+          <button style={actionBtnStyle(permalinkCopied ? '#e8fdf5' : '#f6f0ff', permalinkCopied ? '#a8e6cf' : '#d4c5f0', permalinkCopied ? '#27ae60' : '#7c5cbf')} onClick={copyPermalink}>
+            {permalinkCopied ? '✓' : '🔗'} {permalinkCopied ? (fr ? 'Lien copié !' : 'Link copied!') : (fr ? 'Copier le lien' : 'Copy link')}
           </button>
           {result?.n_per_group != null && (
             <button style={actionBtnStyle('#fff', '#E0E7EF', '#2F344A')} onClick={handleExportJpeg}>

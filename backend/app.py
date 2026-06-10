@@ -11,7 +11,7 @@ from functools import wraps
 from collections import defaultdict
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from simulate import choose_statistical_method, list_possible_tests
+from simulate import choose_statistical_method, list_possible_tests, power_curve_data
 
 # ── Logging ────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO,
@@ -167,3 +167,25 @@ if __name__ == '__main__':
     debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     logger.info("SimpleSize API démarré sur port %d (debug=%s)", port, debug)
     app.run(host="0.0.0.0", port=port, debug=debug)
+
+@app.route('/api/power_curve', methods=['POST'])
+def power_curve():
+    try:
+        data = request.get_json(force=True)
+        points = power_curve_data(
+            selected_test = data.get("selected_test", "ttest"),
+            f             = float(data.get("f", 0.25)),
+            alpha         = float(data.get("alpha", 0.05)),
+            r             = float(data.get("r", 0.3)),
+            f2            = float(data.get("f2", 0.15)),
+            chi2_df       = int(data.get("chi2_df", 1)),
+            n_predictors  = int(data.get("n_predictors", 1)),
+            corr          = float(data.get("corr", 0.5)),
+            epsilon       = float(data.get("epsilon", 1.0)),
+            n_groups      = int(data.get("n_groups", 2)),
+            n_levels      = int(data.get("n_levels", 2)),
+            n_points      = int(data.get("n_points", 40)),
+        )
+        return jsonify({"points": points})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400

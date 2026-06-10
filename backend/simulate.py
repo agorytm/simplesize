@@ -32,6 +32,31 @@ def _bisect(f, lo, hi, target, n_iter=60):
 #  ANOVA MESURES RÉPÉTÉES
 # ─────────────────────────────────────────────
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CORRECTIONS COMPARAISONS MULTIPLES
+# ═══════════════════════════════════════════════════════════════════════════════
+def apply_multiple_comparisons(alpha, n_comparisons, method="bonferroni"):
+    """
+    Retourne l'alpha corrigé et un message explicatif.
+    method: 'bonferroni' | 'holm' | 'none'
+    Pour Holm: alpha_corrigé = alpha / (n_comparisons - rang + 1)
+    On renvoie le cas le plus conservateur (rang=1) pour le calcul de N.
+    """
+    if n_comparisons <= 1 or method == "none":
+        return alpha, None
+    if method == "bonferroni":
+        alpha_corr = alpha / n_comparisons
+        msg = f"Correction de Bonferroni appliquée : α/{n_comparisons} = {alpha_corr:.4f}"
+        return alpha_corr, msg
+    elif method == "holm":
+        # Pour le calcul de N, on utilise le cas le plus strict (première comparaison)
+        alpha_corr = alpha / n_comparisons
+        msg = f"Correction de Holm appliquée (cas le plus strict) : α/{n_comparisons} = {alpha_corr:.4f}"
+        return alpha_corr, msg
+    return alpha, None
+
 def gpower_anova_rm_solver(f, alpha, power, num_measurements, corr=0.5, epsilon=1.0):
     df_num = (num_measurements - 1) * epsilon
 
@@ -130,7 +155,8 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
                           effect_size=0.25, n_sim=100, alpha=0.05,
                           target="interaction",
                           sd_subject=0.5, sd_resid=1.0,
-                          test_method="lrt", seed=None):
+                          test_method="lrt", seed=None,
+                          missing_rate=0.0):
     """
     Simulation Monte-Carlo pour LMM.
     - Vrai intercept aléatoire : un tirage par sujet (corrige le bug v1).
@@ -165,6 +191,14 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
                            "level":   level.astype(str),
                            "subject": subject.astype(str),
                            "y":       y})
+        # Données manquantes : supprimer aléatoirement missing_rate des observations intra
+        # (on conserve toujours au moins 1 observation par sujet)
+        if missing_rate > 0:
+            n_obs = len(df)
+            n_drop = int(n_obs * missing_rate)
+            if n_drop > 0:
+                drop_idx = rng.choice(n_obs, size=n_drop, replace=False)
+                df = df.drop(drop_idx).reset_index(drop=True)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -183,13 +217,15 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
 
 def lmm_power_solver(f, alpha, power, n_group, n_level, target="interaction",
                      min_n=3, max_n=150, step=1,
+                     missing_rate=0.0,
                      sd_subject=0.5, test_method="lrt", n_sim_override=None):
     for n in range(min_n, max_n + 1, step):
         n_sim = n_sim_override or (60 if n < 30 else 40)
         pw, conv = lmm_power_simulation(
             n_group=n_group, n_level=n_level, n_per_group=n,
             effect_size=f, n_sim=n_sim, alpha=alpha, target=target,
-            sd_subject=sd_subject, test_method=test_method
+            sd_subject=sd_subject, test_method=test_method,
+            missing_rate=missing_rate
         )
         if pw >= power and conv >= max(15, n_sim // 3):
             return n
@@ -385,8 +421,13 @@ def choose_statistical_method(data):
         two_tailed   = bool(data.get("two_tailed", True))
         lmm_target   = data.get("lmm_target", "interaction")
         sd_subject   = float(data.get("sd_subject", 0.5))
-        corr         = float(data.get("corr", 0.5))
-        epsilon      = float(data.get("epsilon", 1.0))
+        corr          = float(data.get("corr", 0.5))
+        epsilon       = float(data.get("epsilon", 1.0))
+        missing_rate  = float(data.get("missing_rate", 0.0))
+        n_comparisons = int(data.get("n_comparisons", 1))
+        mc_method     = data.get("mc_method", "bonferroni")
+        alpha_orig    = alpha
+        alpha, mc_msg = apply_multiple_comparisons(alpha, n_comparisons, mc_method)
         test_method  = data.get("test_method", "lrt")
         n_sim_user   = data.get("n_sim", None)
         if n_sim_user is not None:
@@ -461,44 +502,44 @@ def choose_statistical_method(data):
             analysis = TTestIndPower()
             n = analysis.solve_power(effect_size=f, alpha=alpha, power=power)
             return {"n_per_group": int(math.ceil(n)), "test": "ttest",
-                    "interpretation": _interpret_d(f)}
+                    "interpretation": _interpret_d(f), "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         elif selected_test == "ttest_paired":
             n = ttest_paired_n_solver(f, alpha, power)
             return {"n_per_group": n, "test": "ttest_paired",
-                    "interpretation": _interpret_d(f)}
+                    "interpretation": _interpret_d(f), "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         elif selected_test == "anova":
             analysis = FTestAnovaPower()
             n_total = analysis.solve_power(effect_size=f, alpha=alpha, power=power, k_groups=n_groups)
             return {"n_per_group": int(math.ceil(n_total / n_groups)), "test": "anova",
-                    "interpretation": _interpret_f(f)}
+                    "interpretation": _interpret_f(f), "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         elif selected_test == "anova_rm":
             if n_levels < 2:
                 return {"error": "Au moins 2 modalités intra requises.", "test": "anova_rm"}
             n = gpower_anova_rm_solver(f, alpha, power, num_measurements=n_levels, corr=corr, epsilon=epsilon)
             return {"n_per_group": n, "test": "anova_rm",
-                    "interpretation": _interpret_f(f), "corr": corr, "epsilon": epsilon}
+                    "interpretation": _interpret_f(f), "corr": corr, "epsilon": epsilon, "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         elif selected_test == "anova_mixed":
             if n_groups < 2 or n_levels < 2:
                 return {"error": "2 groupes et 2 niveaux intra requis.", "test": "anova_mixed"}
             n_total = gpower_anova_mixed_solver(f, alpha, power, n_groups, n_levels, corr=corr, epsilon=epsilon)
             return {"n_per_group": int(math.ceil(n_total / n_groups)), "test": "anova_mixed",
-                    "interpretation": _interpret_f(f), "corr": corr, "epsilon": epsilon}
+                    "interpretation": _interpret_f(f), "corr": corr, "epsilon": epsilon, "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         elif selected_test == "lmm":
             n_group = n_groups if n_groups >= 2 else 2
             n_level = n_levels if n_levels >= 2 else 2
             found_n = lmm_power_solver(f, alpha, power, n_group, n_level, target=lmm_target,
                                        sd_subject=sd_subject, test_method=test_method,
-                                       n_sim_override=n_sim_user)
+                                       n_sim_override=n_sim_user, missing_rate=missing_rate)
             n_sim_final = n_sim_user or 60
             pw_final, conv_final = lmm_power_simulation(
                 n_group=n_group, n_level=n_level, n_per_group=found_n,
                 effect_size=f, n_sim=n_sim_final, alpha=alpha, target=lmm_target,
-                sd_subject=sd_subject, test_method=test_method
+                sd_subject=sd_subject, test_method=test_method, missing_rate=missing_rate
             )
             return {
                 "test": "lmm",
@@ -509,24 +550,24 @@ def choose_statistical_method(data):
                 "converged": conv_final,
                 "sd_subject": sd_subject,
                 "test_method": test_method,
-                "message": f"Puissance estimée par simulation : {round(pw_final*100)}% avec n={found_n}/groupe.",
+                "message": f"Puissance estimée par simulation : {round(pw_final*100)}% avec n={found_n}/groupe." + (f" ({int(missing_rate*100)}% de mesures manquantes simulées.)" if missing_rate > 0 else ""),
                 "interpretation": _interpret_f(f)
             }
 
         elif selected_test == "correlation":
             n = correlation_n_solver(r_val, alpha, power, two_tailed)
             return {"n_per_group": n, "test": "correlation",
-                    "interpretation": _interpret_r(r_val)}
+                    "interpretation": _interpret_r(r_val), "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         elif selected_test == "chi2":
             n = chi2_n_solver(f, alpha, power, chi2_df)
             return {"n_per_group": n, "test": "chi2",
-                    "interpretation": _interpret_w(f)}
+                    "interpretation": _interpret_w(f), "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         elif selected_test == "regression":
             n = regression_n_solver(f2_val, alpha, power, n_predictors)
             return {"n_per_group": n, "test": "regression",
-                    "interpretation": _interpret_f2(f2_val)}
+                    "interpretation": _interpret_f2(f2_val), "mc_correction": mc_msg, "alpha_used": alpha, "alpha_orig": alpha_orig}
 
         return {"error": "Test non reconnu.", "test": "unknown"}
 
@@ -571,3 +612,98 @@ def _interpret_f2(f2):
     if f2 < 0.15: return {"level": "small",    "label": "Petit effet (0.02 ≤ f² < 0.15)"}
     if f2 < 0.35: return {"level": "medium",   "label": "Effet moyen (0.15 ≤ f² < 0.35)"}
     return              {"level": "large",    "label": "Grand effet (f² ≥ 0.35)"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  POWER CURVE  — renvoie une série (N, power) pour tracer la courbe
+# ═══════════════════════════════════════════════════════════════════════════════
+def power_curve_data(selected_test, f, alpha, r=0.3, f2=0.15, chi2_df=1,
+                     n_predictors=1, corr=0.5, epsilon=1.0,
+                     n_groups=2, n_levels=2, n_points=40):
+    """
+    Retourne une liste de {n, power} sur une plage N adaptée au test.
+    """
+    import numpy as np
+    from statsmodels.stats.power import TTestIndPower, TTestPower, FTestAnovaPower
+    from scipy.stats import ncf, ncx2, norm
+
+    points = []
+
+    # Plage N selon le test
+    if selected_test in ("ttest", "ttest_paired"):
+        ns = np.unique(np.round(np.geomspace(5, 600, n_points)).astype(int))
+    elif selected_test in ("anova", "anova_rm", "anova_mixed"):
+        ns = np.unique(np.round(np.geomspace(5, 400, n_points)).astype(int))
+    elif selected_test == "correlation":
+        ns = np.unique(np.round(np.geomspace(10, 1000, n_points)).astype(int))
+    elif selected_test == "chi2":
+        ns = np.unique(np.round(np.geomspace(10, 1000, n_points)).astype(int))
+    elif selected_test == "regression":
+        ns = np.unique(np.round(np.geomspace(10, 800, n_points)).astype(int))
+    else:
+        ns = np.unique(np.round(np.geomspace(5, 500, n_points)).astype(int))
+
+    for n in ns:
+        n = int(n)
+        try:
+            if selected_test == "ttest":
+                d = f * 2
+                analysis = TTestIndPower()
+                pw = analysis.power(effect_size=d, nobs1=n, alpha=alpha, ratio=1.0)
+
+            elif selected_test == "ttest_paired":
+                d = f * 2
+                analysis = TTestPower()
+                pw = analysis.power(effect_size=d, nobs=n, alpha=alpha)
+
+            elif selected_test == "anova":
+                analysis = FTestAnovaPower()
+                pw = analysis.power(effect_size=f, nobs=n, alpha=alpha, k_groups=n_groups)
+
+            elif selected_test == "anova_rm":
+                df_num = (n_levels - 1) * epsilon
+                df_den = (n - 1) * (n_levels - 1) * epsilon
+                if df_num <= 0 or df_den <= 0:
+                    continue
+                lam = n * f**2 * n_levels / max(1 - corr, 1e-6)
+                fc = ncf.ppf(1 - alpha, df_num, df_den, 0)
+                pw = 1 - ncf.cdf(fc, df_num, df_den, lam)
+
+            elif selected_test == "anova_mixed":
+                n_total = n * n_groups
+                df_num = (n_groups - 1) * (n_levels - 1) * epsilon
+                df_den = (n_total - n_groups) * (n_levels - 1) * epsilon
+                if df_num <= 0 or df_den <= 0:
+                    continue
+                lam = n_total * f**2 * n_levels / max(1 - corr, 1e-6)
+                fc = ncf.ppf(1 - alpha, df_num, df_den, 0)
+                pw = 1 - ncf.cdf(fc, df_num, df_den, lam)
+
+            elif selected_test == "correlation":
+                zr = math.atanh(max(min(r, 0.999), 0.001))
+                se = 1.0 / math.sqrt(max(n - 3, 1))
+                z_crit = norm.ppf(1 - alpha / 2)
+                pw = 1 - norm.cdf(z_crit - zr / se) + norm.cdf(-z_crit - zr / se)
+
+            elif selected_test == "chi2":
+                lam = n * f**2
+                crit = ncx2.ppf(1 - alpha, chi2_df, 0)
+                pw = 1 - ncx2.cdf(crit, chi2_df, lam)
+
+            elif selected_test == "regression":
+                n_total = n
+                df1 = n_predictors
+                df2 = max(n_total - n_predictors - 1, 1)
+                lam = n_total * f2
+                fc = ncf.ppf(1 - alpha, df1, df2, 0)
+                pw = 1 - ncf.cdf(fc, df1, df2, lam)
+
+            else:
+                continue
+
+            pw = float(np.clip(pw, 0, 1))
+            points.append({"n": n, "power": round(pw, 4)})
+        except Exception:
+            continue
+
+    return points

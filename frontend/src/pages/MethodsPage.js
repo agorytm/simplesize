@@ -261,6 +261,7 @@ const TESTS = [
           <li>Reject H₀ if LR > χ²<sub>1−α, Δdf</sub>. Power = rejection rate over converged simulations.</li>
         </ol>
         <p><strong>Why LRT over Wald z?</strong> Wald statistics from MixedLM use asymptotic normality (z) which is anti-conservative at the small sample sizes common in psychology/neuroscience (Bolker et al., 2009). The LRT via χ² is more principled and better calibrated.</p>
+        <p><strong>Missing data (incomplete designs).</strong> Unlike RM ANOVA which requires listwise deletion (one missing measurement = entire subject excluded), LMM estimates parameters from all available observations under the Missing At Random (MAR) assumption. SimpleSize simulates this directly: the specified proportion of measurements is randomly dropped from each simulated dataset before model fitting, giving a realistic power estimate for incomplete designs.</p>
         <p><strong>G*Power comparison:</strong> G*Power does not implement LMM power analysis. Validation is based on comparison with published simulation studies (Arend & Schäfer, 2019; Green & MacLeod, 2016).</p>
       </>,
       formula: "LR = 2(ℓ_full − ℓ_reduced) ~ χ²(Δdf) ;  power ≈ P(LR > χ²_{α, Δdf} | H₁)",
@@ -290,6 +291,7 @@ const TESTS = [
           <li>Rejeter H₀ si LR > χ²<sub>1−α, Δdl</sub>. Puissance = taux de rejet sur les simulations convergées.</li>
         </ol>
         <p><strong>Pourquoi LRT plutôt que Wald z ?</strong> Les statistiques de Wald de MixedLM utilisent la normalité asymptotique (z), anti-conservatrice aux petits effectifs fréquents en psychologie/neurosciences (Bolker et al., 2009). Le LRT via χ² est plus justifié théoriquement.</p>
+        <p><strong>Données manquantes (plan incomplet).</strong> Contrairement à l'ANOVA RM qui requiert des données complètes (un sujet avec une mesure manquante est exclu entièrement), le LMM estime les paramètres à partir de toutes les observations disponibles sous l'hypothèse MAR (<em>Missing At Random</em>). SimpleSize simule cela directement : la proportion de mesures manquantes spécifiée est supprimée aléatoirement à chaque simulation avant l'ajustement du modèle, donnant une estimation réaliste de la puissance pour les plans incomplets.</p>
       </>,
       formula: "LR = 2(ℓ_complet − ℓ_réduit) ~ χ²(Δdl) ;  puissance ≈ P(LR > χ²_{α, Δdl} | H₁)",
       assumptions: "Les sujets sont un échantillon aléatoire ; variance intra-sujet homogène ; normalité des effets aléatoires et des résidus.",
