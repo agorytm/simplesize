@@ -26,6 +26,8 @@ function AnovaForm({
   const [f2, setF2] = useState(formData.f2 || "0.15");
   const [randomFactor, setRandomFactor] = useState(formData.randomFactor || "");
   const [sdSubject, setSdSubject] = useState(formData.sdSubject || "0.5");
+  const [corr, setCorr] = useState(formData.corr !== undefined ? String(formData.corr) : "0.5");
+  const [epsilon, setEpsilon] = useState(formData.epsilon !== undefined ? String(formData.epsilon) : "1.0");
   const [testMethod, setTestMethod] = useState(formData.testMethod || "lrt");
   const [lmmAdvanced, setLmmAdvanced] = useState(false);
 
@@ -47,6 +49,8 @@ function AnovaForm({
     setF2(formData.f2 || "0.15");
     setRandomFactor(formData.randomFactor || "");
     if (formData.sdSubject) setSdSubject(formData.sdSubject);
+    if (formData.corr !== undefined) setCorr(String(formData.corr));
+    if (formData.epsilon !== undefined) setEpsilon(String(formData.epsilon));
     if (formData.testMethod) setTestMethod(formData.testMethod);
     if (formData.interFactors) setInterFactors(formData.interFactors);
     if (formData.intraFactors) setIntraFactors(formData.intraFactors);
@@ -57,9 +61,9 @@ function AnovaForm({
       ...formData, interFactors, intraFactors, alpha, power, f, r,
       chi2_df: chi2Df, n_predictors: nPredictors, f2, randomFactor,
       nSimulations: formData.nSimulations || 50,
-      sdSubject, testMethod,
+      sdSubject, testMethod, corr, epsilon,
     });
-  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, sdSubject, testMethod, formData.nSimulations]);
+  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, sdSubject, testMethod, corr, epsilon, formData.nSimulations]);
 
   useEffect(() => {
     if (!hasSample) { setNGiven(""); setMDE(null); setMdeError(""); }
@@ -81,7 +85,8 @@ function AnovaForm({
       f2: parseFloat(f2.replace(",", ".")), chi2_df: parseInt(chi2Df),
       n_predictors: parseInt(nPredictors),
       group_levels: interFactors[0]?.levels || [], level_levels: intraFactors[0]?.levels || [],
-      interFactors, intraFactors, selected_test: selectedTest, mde_mode: true, n_given: Number(nGiven)
+      interFactors, intraFactors, selected_test: selectedTest, mde_mode: true, n_given: Number(nGiven),
+      corr: parseFloat(corr), epsilon: parseFloat(epsilon)
     };
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {
@@ -333,6 +338,67 @@ function AnovaForm({
                 >
                   {isLoadingLmm ? (fr ? "Calcul..." : "Calculating...") : (fr ? "Lancer le calcul LMM" : "Run LMM calculation")}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── CORR / EPSILON (anova_rm + anova_mixed) ─────────────────── */}
+          {(selectedTest === "anova_rm" || selectedTest === "anova_mixed") && (
+            <div style={{ margin: "10px 0 8px 0", padding: "13px 13px 10px 13px", background: "#f6faff", borderRadius: 10, border: "1.3px solid #98d9ed" }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#1a8fa8", marginBottom: 10 }}>
+                {fr ? "⚙️ Paramètres de la structure intra-sujets" : "⚙️ Within-subjects structure parameters"}
+              </div>
+
+              {/* Corrélation */}
+              <label style={{ fontWeight: 500, fontSize: 13, display: "block", marginBottom: 2 }}>
+                {fr
+                  ? "Corrélation entre mesures répétées"
+                  : "Correlation between repeated measures"}
+                <span title={fr
+                  ? "À quel point les mesures d'un même sujet se ressemblent-elles ? 0 = pas de lien, 1 = identiques. La plupart des études utilisent 0.5 (défaut)."
+                  : "How similar are measurements from the same subject? 0 = no link, 1 = identical. Most studies use 0.5 (default)."}
+                  style={{ cursor: "help", color: "#55D1E3", fontSize: 12, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 15, height: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", marginLeft: 6, flexShrink: 0, verticalAlign: "middle" }}>
+                  i
+                </span>
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <input type="range" min="0.05" max="0.95" step="0.05"
+                  value={corr}
+                  onChange={e => setCorr(e.target.value)}
+                  style={{ flex: 1, accentColor: "#55D1E3" }} />
+                <span style={{ fontWeight: 700, color: "#1a8fa8", minWidth: 32, fontSize: 14 }}>{parseFloat(corr).toFixed(2)}</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#9aabbc", marginBottom: 8 }}>
+                {fr
+                  ? "Faible ≈ 0.2 · Typique ≈ 0.5 · Forte ≈ 0.8"
+                  : "Low ≈ 0.2 · Typical ≈ 0.5 · High ≈ 0.8"}
+              </div>
+
+              {/* Epsilon (sphéricité) */}
+              <label style={{ fontWeight: 500, fontSize: 13, display: "block", marginBottom: 2 }}>
+                {fr
+                  ? "Sphéricité (ε, epsilon)"
+                  : "Sphericity (ε, epsilon)"}
+                <span title={fr
+                  ? "Hypothèse de sphéricité : les variances des différences entre paires de mesures sont égales. ε = 1 = sphéricité parfaite. Si le test de Mauchly est significatif, réduire ε (Greenhouse-Geisser ≈ 0.75, Huynh-Feldt ≈ 0.85)."
+                  : "Sphericity assumption: variances of differences between measurement pairs are equal. ε = 1 = perfect sphericity. If Mauchly's test is significant, reduce ε (Greenhouse-Geisser ≈ 0.75, Huynh-Feldt ≈ 0.85)."}
+                  style={{ cursor: "help", color: "#55D1E3", fontSize: 12, fontWeight: 800, borderRadius: "50%", border: "1.2px solid #55D1E3", width: 15, height: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", marginLeft: 6, flexShrink: 0, verticalAlign: "middle" }}>
+                  i
+                </span>
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <input type="range" min="0.4" max="1.0" step="0.05"
+                  value={epsilon}
+                  onChange={e => setEpsilon(e.target.value)}
+                  style={{ flex: 1, accentColor: "#55D1E3" }} />
+                <span style={{ fontWeight: 700, color: parseFloat(epsilon) < 0.75 ? "#e67e22" : parseFloat(epsilon) < 1 ? "#f0a500" : "#27ae60", minWidth: 32, fontSize: 14 }}>
+                  {parseFloat(epsilon).toFixed(2)}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: "#9aabbc" }}>
+                {fr
+                  ? "ε = 1.0 → sphéricité parfaite (défaut) · ε ≈ 0.75 → Greenhouse-Geisser · ε ≈ 0.85 → Huynh-Feldt"
+                  : "ε = 1.0 → perfect sphericity (default) · ε ≈ 0.75 → Greenhouse-Geisser · ε ≈ 0.85 → Huynh-Feldt"}
               </div>
             </div>
           )}

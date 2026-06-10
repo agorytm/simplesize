@@ -445,7 +445,9 @@ function HomePage() {
       chi2_df: parseInt(formData.chi2_df || 1),
       n_predictors: parseInt(formData.n_predictors || 1),
       two_tailed: true, factors, group_levels, level_levels,
-      interFactors, intraFactors, selected_test: test
+      interFactors, intraFactors, selected_test: test,
+      corr: parseFloat((formData.corr || "0.5").toString()),
+      epsilon: parseFloat((formData.epsilon || "1.0").toString())
     };
     try {
       const res = await fetch((process.env.REACT_APP_API_URL || 'https://simplesize-production.up.railway.app') + '/api/simplesize', {

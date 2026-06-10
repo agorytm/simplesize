@@ -385,6 +385,8 @@ def choose_statistical_method(data):
         two_tailed   = bool(data.get("two_tailed", True))
         lmm_target   = data.get("lmm_target", "interaction")
         sd_subject   = float(data.get("sd_subject", 0.5))
+        corr         = float(data.get("corr", 0.5))
+        epsilon      = float(data.get("epsilon", 1.0))
         test_method  = data.get("test_method", "lrt")
         n_sim_user   = data.get("n_sim", None)
         if n_sim_user is not None:
@@ -418,13 +420,13 @@ def choose_statistical_method(data):
                         "label": "Cohen's f", "interpretation": _interpret_f(round(f_val, 3))}
 
             elif selected_test == "anova_rm":
-                f_val = gpower_anova_rm_mde_solver(int(n), alpha, power, num_measurements=n_levels)
+                f_val = gpower_anova_rm_mde_solver(int(n), alpha, power, num_measurements=n_levels, corr=corr, epsilon=epsilon)
                 return {"mde": f_val, "test": "anova_rm",
                         "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
 
             elif selected_test == "anova_mixed":
                 n_total = int(n) * n_groups
-                f_val = gpower_anova_mixed_mde_solver(n_total, alpha, power, n_groups, n_levels)
+                f_val = gpower_anova_mixed_mde_solver(n_total, alpha, power, n_groups, n_levels, corr=corr, epsilon=epsilon)
                 return {"mde": f_val, "test": "anova_mixed",
                         "label": "Cohen's f", "interpretation": _interpret_f(f_val)}
 
@@ -475,16 +477,16 @@ def choose_statistical_method(data):
         elif selected_test == "anova_rm":
             if n_levels < 2:
                 return {"error": "Au moins 2 modalités intra requises.", "test": "anova_rm"}
-            n = gpower_anova_rm_solver(f, alpha, power, num_measurements=n_levels)
+            n = gpower_anova_rm_solver(f, alpha, power, num_measurements=n_levels, corr=corr, epsilon=epsilon)
             return {"n_per_group": n, "test": "anova_rm",
-                    "interpretation": _interpret_f(f)}
+                    "interpretation": _interpret_f(f), "corr": corr, "epsilon": epsilon}
 
         elif selected_test == "anova_mixed":
             if n_groups < 2 or n_levels < 2:
                 return {"error": "2 groupes et 2 niveaux intra requis.", "test": "anova_mixed"}
-            n_total = gpower_anova_mixed_solver(f, alpha, power, n_groups, n_levels)
+            n_total = gpower_anova_mixed_solver(f, alpha, power, n_groups, n_levels, corr=corr, epsilon=epsilon)
             return {"n_per_group": int(math.ceil(n_total / n_groups)), "test": "anova_mixed",
-                    "interpretation": _interpret_f(f)}
+                    "interpretation": _interpret_f(f), "corr": corr, "epsilon": epsilon}
 
         elif selected_test == "lmm":
             n_group = n_groups if n_groups >= 2 else 2
