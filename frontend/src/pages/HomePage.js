@@ -40,7 +40,6 @@ function useIsMobile() {
 function HomePage() {
   const { i18n } = useTranslation();
   const fr = i18n.language === 'fr';
-  const { copyPermalink, permalinkCopied } = usePermalink(formData, selectedTest);
   const isMobile = useIsMobile();
   const [mobileTab, setMobileTab] = useState('form');
 
@@ -50,6 +49,7 @@ function HomePage() {
   const [result, setResult] = useState(null);
   const [possibleTests, setPossibleTests] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);
+  const { copyPermalink, permalinkCopied } = usePermalink(formData, selectedTest);
   const [isLoadingLmm, setIsLoadingLmm] = useState(false);
   const [designTouched, setDesignTouched] = useState(false);
   const [designMode, setDesignMode] = useState("experimental");
