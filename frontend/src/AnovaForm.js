@@ -517,7 +517,7 @@ function AnovaForm({
                 <button type="button"
                   style={{ background: isLoadingLmm ? "#E0E7EF" : "linear-gradient(90deg, #80e8fc 0%, #f4f6f8 100%)", color: "#276b7b", fontWeight: 700, fontSize: 15, padding: "10px 22px", border: "1.7px solid #55D1E3", borderRadius: 13, cursor: isLoadingLmm ? "not-allowed" : "pointer", boxShadow: "0 2px 10px #55d1e326", minWidth: 54 }}
                   onClick={() => { if (!isLoadingLmm && onLmmLaunch) onLmmLaunch(); }}
-                  disabled={isLoadingLmm || !randomFactor.trim()}
+                  disabled={isLoadingLmm}
                 >
                   {isLoadingLmm ? (fr ? "Calcul..." : "Calculating...") : (fr ? "Lancer le calcul LMM" : "Run LMM calculation")}
                 </button>
