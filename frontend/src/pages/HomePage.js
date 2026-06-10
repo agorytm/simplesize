@@ -424,8 +424,15 @@ function HomePage() {
       if (nInter === 1) tests.push("anova");
       else tests.push("anova_factorial");
     }
-    if (nIntra >= 1 && nInter === 0) { tests.push("anova_rm"); tests.push("lmm"); }
-    if (nInter >= 1 && nIntra >= 1) { tests.push("anova_mixed"); tests.push("lmm"); }
+    const expectMissing = data.expectMissing || false;
+    if (nIntra >= 1 && nInter === 0) {
+      if (!expectMissing) tests.push("anova_rm");
+      tests.push("lmm");
+    }
+    if (nInter >= 1 && nIntra >= 1) {
+      if (!expectMissing) tests.push("anova_mixed");
+      tests.push("lmm");
+    }
     if (nIntra === 1 && validIntra[0]?.levels.length === 2 && nInter === 0) tests.push("ttest_paired");
     tests = [...new Set(tests)];
     setPossibleTests(tests);

@@ -290,25 +290,6 @@ function AnovaForm({
             </div>
           </div>
 
-          {expectMissing && selectedTest !== "lmm" && (
-            <div style={{
-              padding: "9px 13px", marginBottom: 10, borderRadius: 9,
-              background: "#fff8ec", border: "1.5px solid #F5A623",
-              fontSize: 13, color: "#8a5e00"
-            }}>
-              ⚠ {fr
-                ? "L'ANOVA à mesures répétées exige des données complètes — tous les participants manquants sont exclus. Le LMM conserve les données partielles et est plus puissant en cas d'abandon."
-                : "Repeated-measures ANOVA requires complete data — participants with missing measurements are dropped. LMM retains partial data and is more powerful when dropout is expected."}
-              {onLmmLaunch && (
-                <button type="button" onClick={onLmmLaunch}
-                  style={{ marginLeft: 10, padding: "3px 10px", borderRadius: 6, border: "none",
-                           background: "#F5A623", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
-                  {fr ? "Passer au LMM →" : "Switch to LMM →"}
-                </button>
-              )}
-            </div>
-          )}
-
           <label style={labelStyle}>Alpha (&#945;)</label>
           <input type="text" value={alpha} onChange={e => setAlpha(e.target.value)} style={inputStyle} />
           <label style={labelStyle}>{fr ? "Puissance" : "Power"}</label>
