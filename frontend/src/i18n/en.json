@@ -7,7 +7,8 @@
     "examples": "Examples",
     "about": "About",
     "donate": "Support us",
-    "changelog": "Changelog"
+    "changelog": "Changelog",
+    "methods": "Methods"
   },
   "pages": {
     "tutorial": "Tutorial",
@@ -54,7 +55,12 @@
     "title": "Support SimpleSize",
     "subtitle": "SimpleSize is free, open, and built by one person.\nYour support helps keep it running and improving.",
     "why": "Why donate?",
-    "reasons": ["Keep the servers running (Railway + Vercel)", "Improve statistical methods and add new tests", "Build better pedagogy for students worldwide", "Translate SimpleSize into more languages"],
+    "reasons": [
+      "Keep the servers running (Railway + Vercel)",
+      "Improve statistical methods and add new tests",
+      "Build better pedagogy for students worldwide",
+      "Translate SimpleSize into more languages"
+    ],
     "button": "Support on Buy Me a Coffee",
     "thanks": "Thank you for using SimpleSize."
   }

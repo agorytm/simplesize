@@ -7,6 +7,7 @@ const LINKS = [
   { to: '/tutorial',  key: 'tutorial'   },
   { to: '/community', key: 'community'  },
   { to: '/lexique',   key: 'glossary'   },
+  { to: '/methods',   key: 'methods'    },
   { to: '/gallery',   key: 'examples'   },
   { to: '/about',     key: 'about'      },
   { to: '/donate',    key: 'donate'     },

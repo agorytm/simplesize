@@ -7,7 +7,8 @@
     "examples": "Exemples",
     "about": "À propos",
     "donate": "Nous soutenir",
-    "changelog": "Nouveautés"
+    "changelog": "Nouveautés",
+    "methods": "Méthodes"
   },
   "pages": {
     "tutorial": "Tutoriel",
@@ -54,7 +55,12 @@
     "title": "Soutenir SimpleSize",
     "subtitle": "SimpleSize est gratuit, ouvert, et construit par une seule personne.\nVotre soutien aide à le faire tourner et à l'améliorer.",
     "why": "Pourquoi donner ?",
-    "reasons": ["Maintenir les serveurs en ligne (Railway + Vercel)", "Améliorer les méthodes statistiques et ajouter de nouveaux tests", "Développer la pédagogie pour les étudiants", "Traduire SimpleSize dans d'autres langues"],
+    "reasons": [
+      "Maintenir les serveurs en ligne (Railway + Vercel)",
+      "Améliorer les méthodes statistiques et ajouter de nouveaux tests",
+      "Développer la pédagogie pour les étudiants",
+      "Traduire SimpleSize dans d'autres langues"
+    ],
     "button": "Soutenir sur Buy Me a Coffee",
     "thanks": "Merci d'utiliser SimpleSize."
   }

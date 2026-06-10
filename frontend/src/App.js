@@ -11,6 +11,7 @@ import DonatePage from './pages/DonatePage';
 import LexiquePage from './pages/LexiquePage';
 import GalleryPage from './pages/GalleryPage';
 import ChangelogPage from './pages/ChangelogPage';
+import MethodsPage  from './pages/MethodsPage';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/lexique"     element={<LexiquePage />} />
           <Route path="/gallery"     element={<GalleryPage />} />
           <Route path="/changelog"   element={<ChangelogPage />} />
+          <Route path="/methods"     element={<MethodsPage />} />
           <Route path="/adm"         element={<AdminPage />} />
         </Routes>
       </div>
