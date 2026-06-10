@@ -255,11 +255,17 @@ const TESTS = [
       method: <>
         <p>No closed-form power formula exists for LMMs. SimpleSize estimates power by Monte Carlo simulation:</p>
         <ol>
-          <li>For each simulation: generate data under the alternative hypothesis using a true random intercept per subject: y = μ[group,level] + b<sub>subject</sub> + ε, where b<sub>subject</sub> ~ N(0, σ²<sub>subj</sub>) drawn <em>once per subject</em> and shared across their repeated measurements.</li>
+          <li>Generate data under the alternative hypothesis, using one of three random effect structures (see below).</li>
           <li>Fit the full model (group × level) and a reduced model (without the target effect) using Maximum Likelihood (not REML, required for LRT).</li>
           <li>Compute the Likelihood Ratio statistic: LR = 2(ℓ<sub>full</sub> − ℓ<sub>reduced</sub>) ~ χ²(Δdf).</li>
-          <li>Reject H₀ if LR > χ²<sub>1−α, Δdf</sub>. Power = rejection rate over converged simulations.</li>
+          <li>Reject H₀ if LR {'>'} χ²<sub>1−α, Δdf</sub>. Power = rejection rate over converged simulations.</li>
         </ol>
+        <p><strong>Random effect structures.</strong> The choice of random effects changes both the data-generating process and the model, and therefore affects power estimates:</p>
+        <ul>
+          <li><strong>Random intercept only</strong> — each participant has their own baseline level: y = μ[group,level] + b<sub>subj</sub> + ε. Most common default. Model: <code>MixedLM(y ~ group*level, groups=subject)</code>.</li>
+          <li><strong>Random intercept + slope</strong> — each participant also has their own change across measurements (e.g., different learning trajectories): y = μ[group,level] + b<sub>subj</sub> + s<sub>subj</sub>·level_num + ε, where s<sub>subj</sub> ~ N(0, σ²<sub>slope</sub>). Model includes <code>re_formula="~level"</code>. Typically yields <em>lower</em> power because the model must estimate additional variance.</li>
+          <li><strong>Crossed effects (participants × items)</strong> — stimuli/items are also a random factor, as in most experimental psychology and linguistics designs (Baayen et al., 2008): y = μ[group,level] + b<sub>subj</sub> + u<sub>item</sub> + ε. The item variance is absorbed into residuals in the fitted model (conservative estimate), which avoids inflating power by treating item variability as fixed.</li>
+        </ul>
         <p><strong>Why LRT over Wald z?</strong> Wald statistics from MixedLM use asymptotic normality (z) which is anti-conservative at the small sample sizes common in psychology/neuroscience (Bolker et al., 2009). The LRT via χ² is more principled and better calibrated.</p>
         <p><strong>Missing data (incomplete designs).</strong> Unlike RM ANOVA which requires listwise deletion (one missing measurement = entire subject excluded), LMM estimates parameters from all available observations under the Missing At Random (MAR) assumption. SimpleSize simulates this directly: the specified proportion of measurements is randomly dropped from each simulated dataset before model fitting, giving a realistic power estimate for incomplete designs.</p>
         <p><strong>G*Power comparison:</strong> G*Power does not implement LMM power analysis. Validation is based on comparison with published simulation studies (Arend & Schäfer, 2019; Green & MacLeod, 2016).</p>
@@ -285,13 +291,19 @@ const TESTS = [
       method: <>
         <p>Il n'existe pas de formule analytique de puissance pour les LMM. SimpleSize l'estime par simulation Monte-Carlo :</p>
         <ol>
-          <li>Pour chaque simulation : générer des données sous H₁ avec un vrai intercept aléatoire par sujet : y = μ[groupe, mesure] + b<sub>sujet</sub> + ε, où b<sub>sujet</sub> ~ N(0, σ²<sub>sujet</sub>) tiré <em>une fois par sujet</em> et partagé sur toutes ses mesures.</li>
+          <li>Générer des données sous H₁ selon l'une des trois structures d'effets aléatoires (voir ci-dessous).</li>
           <li>Ajuster le modèle complet (groupe × mesure) et un modèle réduit (sans l'effet cible) par Maximum de Vraisemblance (ML, pas REML, requis pour le LRT).</li>
           <li>Calculer la statistique LRT : LR = 2(ℓ<sub>complet</sub> − ℓ<sub>réduit</sub>) ~ χ²(Δdl).</li>
-          <li>Rejeter H₀ si LR > χ²<sub>1−α, Δdl</sub>. Puissance = taux de rejet sur les simulations convergées.</li>
+          <li>Rejeter H₀ si LR {'>'} χ²<sub>1−α, Δdl</sub>. Puissance = taux de rejet sur les simulations convergées.</li>
         </ol>
+        <p><strong>Structures d'effets aléatoires.</strong> Le choix des effets aléatoires modifie à la fois la génération des données et le modèle ajusté, et influence donc les estimations de puissance :</p>
+        <ul>
+          <li><strong>Intercept aléatoire seulement</strong> — chaque participant a son propre niveau de base : y = μ[groupe,mesure] + b<sub>sujet</sub> + ε. Cas le plus courant. Modèle : <code>MixedLM(y ~ groupe*mesure, groups=sujet)</code>.</li>
+          <li><strong>Intercept + pente aléatoires</strong> — chaque participant a aussi sa propre évolution d'une mesure à l'autre (ex. trajectoires d'apprentissage différentes) : y = μ[groupe,mesure] + b<sub>sujet</sub> + s<sub>sujet</sub>·mesure_num + ε, avec s<sub>sujet</sub> ~ N(0, σ²<sub>pente</sub>). Modèle avec <code>re_formula="~mesure"</code>. Donne généralement une puissance <em>plus faible</em> car le modèle doit estimer une variance supplémentaire.</li>
+          <li><strong>Effets croisés (participants × stimuli)</strong> — les stimuli/items sont aussi un facteur aléatoire, comme dans la plupart des designs de psychologie expérimentale et de linguistique (Baayen et al., 2008) : y = μ[groupe,mesure] + b<sub>sujet</sub> + u<sub>item</sub> + ε. La variance des items est absorbée dans les résidus du modèle ajusté (estimation conservatrice), ce qui évite de surestimer la puissance.</li>
+        </ul>
         <p><strong>Pourquoi LRT plutôt que Wald z ?</strong> Les statistiques de Wald de MixedLM utilisent la normalité asymptotique (z), anti-conservatrice aux petits effectifs fréquents en psychologie/neurosciences (Bolker et al., 2009). Le LRT via χ² est plus justifié théoriquement.</p>
-        <p><strong>Données manquantes (plan incomplet).</strong> Contrairement à l'ANOVA RM qui requiert des données complètes (un sujet avec une mesure manquante est exclu entièrement), le LMM estime les paramètres à partir de toutes les observations disponibles sous l'hypothèse MAR (<em>Missing At Random</em>). SimpleSize simule cela directement : la proportion de mesures manquantes spécifiée est supprimée aléatoirement à chaque simulation avant l'ajustement du modèle, donnant une estimation réaliste de la puissance pour les plans incomplets.</p>
+        <p><strong>Données manquantes (plan incomplet).</strong> Contrairement à l'ANOVA RM qui requiert des données complètes (un sujet avec une mesure manquante est exclu entièrement), le LMM estime les paramètres à partir de toutes les observations disponibles sous l'hypothèse MAR (<em>Missing At Random</em>). SimpleSize simule cela directement : la proportion de données manquantes spécifiée est supprimée aléatoirement à chaque simulation avant l'ajustement du modèle, donnant une estimation réaliste de la puissance pour les plans incomplets.</p>
       </>,
       formula: "LR = 2(ℓ_complet − ℓ_réduit) ~ χ²(Δdl) ;  puissance ≈ P(LR > χ²_{α, Δdl} | H₁)",
       assumptions: "Les sujets sont un échantillon aléatoire ; variance intra-sujet homogène ; normalité des effets aléatoires et des résidus.",

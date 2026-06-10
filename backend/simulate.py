@@ -121,7 +121,7 @@ def gpower_anova_mixed_mde_solver(n_total, alpha, power, n_groups, n_levels, cor
 #  LMM SIMULATION  (v2 — intercept aléatoire corrigé + LRT)
 # ─────────────────────────────────────────────
 
-def _lmm_fixed_effect_pvalue(df, target, method="lrt"):
+def _lmm_fixed_effect_pvalue(df, target, method="lrt", re_formula=None):
     """
     Calcule la p-value du test sur l'effet fixe cible.
     method="wald"  : z de Wald (rapide, anticonservative à petit N)
@@ -132,18 +132,19 @@ def _lmm_fixed_effect_pvalue(df, target, method="lrt"):
         "group":       "group[T.1]",
         "level":       "level[T.1]",
     }
+    re_kw = {"re_formula": re_formula} if re_formula else {}
     if method == "wald":
-        m = mixedlm("y ~ group * level", df, groups=df["subject"]).fit(reml=True, disp=False)
+        m = mixedlm("y ~ group * level", df, groups=df["subject"], **re_kw).fit(reml=True, disp=False)
         return m.pvalues.get(key_map.get(target, ""), 1.0)
 
     # LRT : full vs reduced en ML (reml=False requis pour comparaison de vraisemblances)
-    full = mixedlm("y ~ group * level", df, groups=df["subject"]).fit(reml=False, disp=False)
+    full = mixedlm("y ~ group * level", df, groups=df["subject"], **re_kw).fit(reml=False, disp=False)
     reduced_formula = {
         "interaction": "y ~ group + level",
         "group":       "y ~ level",
         "level":       "y ~ group",
     }.get(target, "y ~ group + level")
-    reduced = mixedlm(reduced_formula, df, groups=df["subject"]).fit(reml=False, disp=False)
+    reduced = mixedlm(reduced_formula, df, groups=df["subject"], **re_kw).fit(reml=False, disp=False)
     lr = 2.0 * (full.llf - reduced.llf)
     ddf = full.df_modelwc - reduced.df_modelwc
     if ddf <= 0 or lr < 0:
@@ -156,7 +157,10 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
                           target="interaction",
                           sd_subject=0.5, sd_resid=1.0,
                           test_method="lrt", seed=None,
-                          missing_rate=0.0):
+                          missing_rate=0.0,
+                          random_structure="intercept",
+                          sd_slope=0.3,
+                          n_items=20, sd_item=0.3):
     """
     Simulation Monte-Carlo pour LMM.
     - Vrai intercept aléatoire : un tirage par sujet (corrige le bug v1).
@@ -181,11 +185,34 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
         elif target == "level":
             mu[:, 1] = effect_size
 
-        # Vrai intercept aléatoire : UN tirage par sujet, rediffusé sur ses mesures
+        # Effets aléatoires selon la structure choisie
         subject_re = rng.normal(0, sd_subject, size=n_subjects)
-        y = (mu[group, level]
-             + subject_re[subject]
-             + rng.normal(0, sd_resid, size=len(group)))
+
+        if random_structure == "intercept_slope":
+            # Intercept + pente aléatoire par sujet (non corrélés pour simplifier)
+            slope_re = rng.normal(0, sd_slope, size=n_subjects)
+            level_numeric = level.astype(float) / max(n_level - 1, 1)
+            y = (mu[group, level]
+                 + subject_re[subject]
+                 + slope_re[subject] * level_numeric
+                 + rng.normal(0, sd_resid, size=len(group)))
+
+        elif random_structure == "crossed":
+            # Effets croisés : sujets × items
+            # n_items items répétés sur tous les sujets et niveaux
+            n_total_obs = len(group)
+            item_idx = np.tile(np.arange(n_items), int(np.ceil(n_total_obs / n_items)))[:n_total_obs]
+            item_re = rng.normal(0, sd_item, size=n_items)
+            y = (mu[group, level]
+                 + subject_re[subject]
+                 + item_re[item_idx]
+                 + rng.normal(0, sd_resid, size=n_total_obs))
+
+        else:
+            # Intercept aléatoire seul (défaut)
+            y = (mu[group, level]
+                 + subject_re[subject]
+                 + rng.normal(0, sd_resid, size=len(group)))
 
         df = pd.DataFrame({"group":   group.astype(str),
                            "level":   level.astype(str),
@@ -218,14 +245,18 @@ def lmm_power_simulation(n_group=2, n_level=2, n_per_group=20,
 def lmm_power_solver(f, alpha, power, n_group, n_level, target="interaction",
                      min_n=3, max_n=150, step=1,
                      missing_rate=0.0,
-                     sd_subject=0.5, test_method="lrt", n_sim_override=None):
+                     sd_subject=0.5, test_method="lrt", n_sim_override=None,
+                     random_structure="intercept", sd_slope=0.3,
+                     n_items=20, sd_item=0.3):
     for n in range(min_n, max_n + 1, step):
         n_sim = n_sim_override or (60 if n < 30 else 40)
         pw, conv = lmm_power_simulation(
             n_group=n_group, n_level=n_level, n_per_group=n,
             effect_size=f, n_sim=n_sim, alpha=alpha, target=target,
             sd_subject=sd_subject, test_method=test_method,
-            missing_rate=missing_rate
+            missing_rate=missing_rate,
+            random_structure=random_structure, sd_slope=sd_slope,
+            n_items=n_items, sd_item=sd_item
         )
         if pw >= power and conv >= max(15, n_sim // 3):
             return n
@@ -423,7 +454,11 @@ def choose_statistical_method(data):
         sd_subject   = float(data.get("sd_subject", 0.5))
         corr          = float(data.get("corr", 0.5))
         epsilon       = float(data.get("epsilon", 1.0))
-        missing_rate  = float(data.get("missing_rate", 0.0))
+        missing_rate       = float(data.get("missing_rate", 0.0))
+        random_structure   = data.get("random_structure", "intercept")
+        sd_slope           = float(data.get("sd_slope", 0.3))
+        n_items            = int(data.get("n_items", 20))
+        sd_item            = float(data.get("sd_item", 0.3))
         n_comparisons = int(data.get("n_comparisons", 1))
         mc_method     = data.get("mc_method", "bonferroni")
         alpha_orig    = alpha
@@ -534,12 +569,16 @@ def choose_statistical_method(data):
             n_level = n_levels if n_levels >= 2 else 2
             found_n = lmm_power_solver(f, alpha, power, n_group, n_level, target=lmm_target,
                                        sd_subject=sd_subject, test_method=test_method,
-                                       n_sim_override=n_sim_user, missing_rate=missing_rate)
+                                       n_sim_override=n_sim_user, missing_rate=missing_rate,
+                                       random_structure=random_structure, sd_slope=sd_slope,
+                                       n_items=n_items, sd_item=sd_item)
             n_sim_final = n_sim_user or 60
             pw_final, conv_final = lmm_power_simulation(
                 n_group=n_group, n_level=n_level, n_per_group=found_n,
                 effect_size=f, n_sim=n_sim_final, alpha=alpha, target=lmm_target,
-                sd_subject=sd_subject, test_method=test_method, missing_rate=missing_rate
+                sd_subject=sd_subject, test_method=test_method, missing_rate=missing_rate,
+                random_structure=random_structure, sd_slope=sd_slope,
+                n_items=n_items, sd_item=sd_item
             )
             return {
                 "test": "lmm",
@@ -550,6 +589,7 @@ def choose_statistical_method(data):
                 "converged": conv_final,
                 "sd_subject": sd_subject,
                 "test_method": test_method,
+                "random_structure": random_structure,
                 "message": f"Puissance estimée par simulation : {round(pw_final*100)}% avec n={found_n}/groupe." + (f" ({int(missing_rate*100)}% de mesures manquantes simulées.)" if missing_rate > 0 else ""),
                 "interpretation": _interpret_f(f)
             }

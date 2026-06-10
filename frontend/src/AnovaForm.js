@@ -25,6 +25,11 @@ function AnovaForm({
   const [nPredictors, setNPredictors] = useState(formData.n_predictors || "1");
   const [f2, setF2] = useState(formData.f2 || "0.15");
   const [randomFactor, setRandomFactor] = useState(formData.randomFactor || "");
+  const [randomStructure, setRandomStructure] = useState(formData.randomStructure || "intercept");
+  const [sdSlope, setSdSlope] = useState(formData.sdSlope || "0.3");
+  const [nItems, setNItems] = useState(formData.nItems || "20");
+  const [sdItem, setSdItem] = useState(formData.sdItem || "0.3");
+  const [expectMissing, setExpectMissing] = useState(formData.expectMissing || false);
   const [sdSubject, setSdSubject] = useState(formData.sdSubject || "0.5");
   const [corr, setCorr] = useState(formData.corr !== undefined ? String(formData.corr) : "0.5");
   const [epsilon, setEpsilon] = useState(formData.epsilon !== undefined ? String(formData.epsilon) : "1.0");
@@ -52,6 +57,11 @@ function AnovaForm({
     setF2(formData.f2 || "0.15");
     setRandomFactor(formData.randomFactor || "");
     if (formData.sdSubject) setSdSubject(formData.sdSubject);
+    if (formData.randomStructure) setRandomStructure(formData.randomStructure);
+    if (formData.sdSlope) setSdSlope(formData.sdSlope);
+    if (formData.nItems) setNItems(formData.nItems);
+    if (formData.sdItem) setSdItem(formData.sdItem);
+    if (formData.expectMissing !== undefined) setExpectMissing(formData.expectMissing);
     if (formData.corr !== undefined) setCorr(String(formData.corr));
     if (formData.nComparisons !== undefined) setNComparisons(formData.nComparisons);
     if (formData.missingRate !== undefined) setMissingRate(formData.missingRate);
@@ -68,8 +78,9 @@ function AnovaForm({
       chi2_df: chi2Df, n_predictors: nPredictors, f2, randomFactor,
       nSimulations: formData.nSimulations || 50,
       sdSubject, testMethod, corr, epsilon, nComparisons, mcMethod, missingRate,
+      randomStructure, sdSlope, nItems, sdItem, expectMissing,
     });
-  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, sdSubject, testMethod, corr, epsilon, nComparisons, mcMethod, missingRate, formData.nSimulations]);
+  }, [interFactors, intraFactors, alpha, power, f, r, chi2Df, nPredictors, f2, randomFactor, sdSubject, testMethod, corr, epsilon, nComparisons, mcMethod, missingRate, randomStructure, sdSlope, nItems, sdItem, expectMissing, formData.nSimulations]);
 
   useEffect(() => {
     if (!hasSample) { setNGiven(""); setMDE(null); setMdeError(""); }
@@ -255,6 +266,49 @@ function AnovaForm({
             </div>
           ))}
 
+          {/* ── EXPECT MISSING CHECKBOX ────────────────────────────── */}
+          <div style={{
+            display: "flex", alignItems: "flex-start", gap: 10,
+            padding: "10px 12px", marginBottom: 10, borderRadius: 9,
+            border: expectMissing ? "1.8px solid #F5A623" : "1.5px solid #e0e7ef",
+            background: expectMissing ? "#fffbf2" : "#fafbfc",
+            cursor: "pointer"
+          }} onClick={() => setExpectMissing(!expectMissing)}>
+            <input type="checkbox" checked={expectMissing}
+              onChange={e => setExpectMissing(e.target.checked)}
+              onClick={e => e.stopPropagation()}
+              style={{ marginTop: 3, accentColor: "#F5A623", flexShrink: 0, width: 15, height: 15 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#2F344A" }}>
+                {fr ? "Je prévois des données manquantes / participants perdus" : "I expect missing data / participant attrition"}
+              </div>
+              <div style={{ fontSize: 12, color: "#778", marginTop: 2 }}>
+                {fr
+                  ? "Certains participants ne termineront pas l'étude (abandon, données aberrantes…). Recommande le LMM qui gère les plans incomplets."
+                  : "Some participants won't complete all measurements (dropout, outliers…). Recommends LMM which handles incomplete designs."}
+              </div>
+            </div>
+          </div>
+
+          {expectMissing && selectedTest !== "lmm" && (
+            <div style={{
+              padding: "9px 13px", marginBottom: 10, borderRadius: 9,
+              background: "#fff8ec", border: "1.5px solid #F5A623",
+              fontSize: 13, color: "#8a5e00"
+            }}>
+              ⚠ {fr
+                ? "L'ANOVA à mesures répétées exige des données complètes — tous les participants manquants sont exclus. Le LMM conserve les données partielles et est plus puissant en cas d'abandon."
+                : "Repeated-measures ANOVA requires complete data — participants with missing measurements are dropped. LMM retains partial data and is more powerful when dropout is expected."}
+              {onLmmLaunch && (
+                <button type="button" onClick={onLmmLaunch}
+                  style={{ marginLeft: 10, padding: "3px 10px", borderRadius: 6, border: "none",
+                           background: "#F5A623", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+                  {fr ? "Passer au LMM →" : "Switch to LMM →"}
+                </button>
+              )}
+            </div>
+          )}
+
           <label style={labelStyle}>Alpha (&#945;)</label>
           <input type="text" value={alpha} onChange={e => setAlpha(e.target.value)} style={inputStyle} />
           <label style={labelStyle}>{fr ? "Puissance" : "Power"}</label>
@@ -284,12 +338,107 @@ function AnovaForm({
 
           {selectedTest === "lmm" && (
             <div style={{ margin: "10px 0 10px 0", padding: "13px 13px 10px 13px", background: "#f6faff", borderRadius: 10, border: "1.3px solid #98d9ed" }}>
-              {/* Facteur aléatoire */}
-              <label style={{ ...labelStyle, fontWeight: 600, color: "#209" }}>
-                {fr ? "Facteur aléatoire (ex : participant)" : "Random factor (e.g., participant)"}
-              </label>
-              <input type="text" value={randomFactor} onChange={e => setRandomFactor(e.target.value)}
-                style={{ ...inputStyle, width: 140 }} placeholder={fr ? "participant" : "participant"} />
+              {/* Structure des effets aléatoires */}
+              <div style={{ fontWeight: 600, fontSize: 13, color: "#1a8fa8", marginBottom: 8 }}>
+                {fr ? "Structure des effets aléatoires" : "Random effects structure"}
+              </div>
+
+              {[
+                {
+                  value: "intercept",
+                  label: fr ? "Intercept aléatoire" : "Random intercept",
+                  desc: fr
+                    ? "Chaque participant a son propre niveau de base. Cas le plus courant."
+                    : "Each participant has their own baseline level. Most common case.",
+                  tip: fr
+                    ? "Utilisez ce choix pour la majorité des designs. La variabilité entre participants est captée par l'intercept aléatoire."
+                    : "Use this for most designs. Between-participant variability is captured by the random intercept."
+                },
+                {
+                  value: "intercept_slope",
+                  label: fr ? "Intercept + pente aléatoires" : "Random intercept + slope",
+                  desc: fr
+                    ? "Chaque participant a aussi sa propre évolution dans le temps / réponse au traitement. Études longitudinales."
+                    : "Each participant also has their own growth/treatment response trajectory. Longitudinal studies.",
+                  tip: fr
+                    ? "Recommandé quand les participants peuvent réagir très différemment d'une mesure à l'autre (ex: apprentissage, récupération, effets de fatigue). Donne une puissance plus faible car le modèle estime plus d'incertitude."
+                    : "Recommended when participants may respond very differently across measurements (e.g. learning, recovery, fatigue effects). Gives lower power because the model estimates more uncertainty."
+                },
+                {
+                  value: "crossed",
+                  label: fr ? "Effets croisés (participants × stimuli)" : "Crossed effects (participants × items)",
+                  desc: fr
+                    ? "Les stimuli/items sont aussi une source de variabilité aléatoire. Psychologie expérimentale, linguistique."
+                    : "Stimuli/items are also a random source of variability. Experimental psychology, linguistics.",
+                  tip: fr
+                    ? "Utilisez ce choix quand chaque participant est exposé à plusieurs stimuli différents (mots, images, sons…) et que vous voulez généraliser à la fois aux participants ET aux stimuli (Baayen et al., 2008). Nécessite de spécifier le nombre de stimuli."
+                    : "Use this when each participant is exposed to multiple stimuli (words, images, sounds…) and you want to generalize to both participants AND stimuli (Baayen et al., 2008). Requires specifying the number of stimuli."
+                }
+              ].map(opt => (
+                <div key={opt.value}
+                  onClick={() => setRandomStructure(opt.value)}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 10,
+                    padding: "9px 11px", marginBottom: 7, borderRadius: 9,
+                    border: randomStructure === opt.value ? "1.8px solid #55D1E3" : "1.5px solid #e0e7ef",
+                    background: randomStructure === opt.value ? "#f0fbfd" : "#fafbfc",
+                    cursor: "pointer",
+                  }}>
+                  <input type="radio" name="randomStructure" value={opt.value}
+                    checked={randomStructure === opt.value} onChange={() => setRandomStructure(opt.value)}
+                    style={{ marginTop: 3, accentColor: "#55D1E3", flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#2F344A" }}>{opt.label}</div>
+                    <div style={{ fontSize: 12, color: "#778", marginTop: 2 }}>{opt.desc}</div>
+                  </div>
+                  <span title={opt.tip}
+                    style={{ cursor: "help", color: "#55D1E3", fontSize: 11, fontWeight: 800,
+                             borderRadius: "50%", border: "1.2px solid #55D1E3",
+                             width: 15, height: 15, display: "flex", alignItems: "center",
+                             justifyContent: "center", background: "#fff", flexShrink: 0, marginTop: 2 }}>
+                    i
+                  </span>
+                </div>
+              ))}
+
+              {/* Paramètres selon la structure */}
+              {randomStructure === "intercept_slope" && (
+                <div style={{ padding: "8px 10px", background: "#f0fbfd", borderRadius: 8, marginBottom: 8, fontSize: 13 }}>
+                  <label style={{ fontWeight: 500, display: "block", marginBottom: 4 }}>
+                    {fr ? "Variabilité de la pente entre participants :" : "Between-participant slope variability:"}
+                    <input type="number" step="0.1" min="0.05" max="3"
+                      value={sdSlope} onChange={e => setSdSlope(e.target.value)}
+                      style={{ ...inputStyle, width: 65, marginLeft: 8, fontSize: 13 }} />
+                    <span style={{ fontSize: 11, color: "#8aabbc", marginLeft: 6 }}>
+                      {fr ? "(défaut 0.3)" : "(default 0.3)"}
+                    </span>
+                  </label>
+                </div>
+              )}
+              {randomStructure === "crossed" && (
+                <div style={{ padding: "8px 10px", background: "#f0fbfd", borderRadius: 8, marginBottom: 8, fontSize: 13 }}>
+                  <label style={{ fontWeight: 500, display: "block", marginBottom: 6 }}>
+                    {fr ? "Nombre de stimuli/items :" : "Number of stimuli/items:"}
+                    <input type="number" step="1" min="4" max="200"
+                      value={nItems} onChange={e => setNItems(e.target.value)}
+                      style={{ ...inputStyle, width: 65, marginLeft: 8, fontSize: 13 }} />
+                  </label>
+                  <label style={{ fontWeight: 500, display: "block" }}>
+                    {fr ? "Variabilité entre stimuli :" : "Between-stimuli variability:"}
+                    <input type="number" step="0.1" min="0.05" max="3"
+                      value={sdItem} onChange={e => setSdItem(e.target.value)}
+                      style={{ ...inputStyle, width: 65, marginLeft: 8, fontSize: 13 }} />
+                    <span style={{ fontSize: 11, color: "#8aabbc", marginLeft: 6 }}>
+                      {fr ? "(défaut 0.3)" : "(default 0.3)"}
+                    </span>
+                  </label>
+                  <div style={{ fontSize: 11, color: "#7a9abc", marginTop: 6 }}>
+                    {fr
+                      ? "⚠ Estimation conservatrice : la variance items est incluse dans les résidus du modèle ajusté."
+                      : "⚠ Conservative estimate: item variance is absorbed into residuals of the fitted model."}
+                  </div>
+                </div>
+              )}
 
               {/* Simulations */}
               <label style={{ fontWeight: 500, fontSize: 13, display: "block", margin: "10px 0 4px" }}>

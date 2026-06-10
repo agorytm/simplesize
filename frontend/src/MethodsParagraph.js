@@ -50,7 +50,16 @@ export default function MethodsParagraph({ formData, result, selectedTest }) {
         }
         case 'lmm': {
           const pw = result.estimated_power ? Math.round(result.estimated_power * 100) : pct;
-          return `La puissance statistique a été estimée par simulation Monte-Carlo (${result.n_sim || 50} simulations) avec un modèle mixte linéaire (MixedLM, statsmodels ; Seabold & Perktold, 2010), en utilisant un test du rapport de vraisemblance (LRT). Pour un design ${nGroups} groupes × ${nLevels} mesures, avec f = ${f.toFixed(2)}, α = ${alphaTxt}, une simulation indique une puissance de ${pw} % avec N = ${n} participants par groupe (N total = ${n * nGroups}).`;
+          const rs = formData.randomStructure || 'intercept';
+          const rsLabel = rs === 'intercept_slope'
+            ? 'intercepts et pentes aléatoires par participant'
+            : rs === 'crossed'
+              ? `effets aléatoires croisés (${nGroups > 1 ? nGroups + ' groupes' : 'participants'} × ${formData.nItems || 20} stimuli)`
+              : 'intercept aléatoire par participant';
+          const missingNote = parseFloat(formData.missingRate || 0) > 0
+            ? ` Un taux d'attrition de ${Math.round(parseFloat(formData.missingRate)*100)} % a été pris en compte ; le LMM conserve les données partielles sous hypothèse MAR.`
+            : '';
+          return \`La puissance statistique a été estimée par simulation Monte-Carlo (\${result.n_sim || 50} simulations) avec un modèle mixte linéaire (MixedLM, statsmodels ; Seabold & Perktold, 2010), en utilisant un test du rapport de vraisemblance (LRT) et une structure d'effets aléatoires : \${rsLabel}. Pour un design \${nGroups} groupes × \${nLevels} mesures, avec f = \${f.toFixed(2)}, α = \${alphaTxt}, les simulations indiquent une puissance de \${pw} % avec N = \${n} participants par groupe (N total = \${n * nGroups}).\${missingNote}\`;
         }
         case 'correlation': {
           return `Une analyse de puissance a priori a été réalisée avec SimpleSize (simplesize.science) via la transformation z de Fisher (Cohen, 1988). Pour détecter une corrélation de Pearson r = ${r.toFixed(2)} (effet ${effectLabel(r,'r',fr)}) avec α = ${alphaTxt} et une puissance de ${pct} %, un effectif de N = ${n} participants est nécessaire.`;
@@ -86,7 +95,16 @@ export default function MethodsParagraph({ formData, result, selectedTest }) {
         }
         case 'lmm': {
           const pw = result.estimated_power ? Math.round(result.estimated_power * 100) : pct;
-          return `Statistical power was estimated via Monte Carlo simulation (${result.n_sim || 50} simulations) using a linear mixed model (MixedLM, statsmodels; Seabold & Perktold, 2010) with a likelihood ratio test (LRT). For a ${nGroups}-group × ${nLevels}-measurement design with f = ${f.toFixed(2)}, α = ${alphaTxt}, simulations indicate ${pw}% power with N = ${n} participants per group (total N = ${n * nGroups}).`;
+          const rs = formData.randomStructure || 'intercept';
+          const rsLabel = rs === 'intercept_slope'
+            ? 'random intercepts and slopes per participant'
+            : rs === 'crossed'
+              ? \`crossed random effects (participants × \${formData.nItems || 20} items/stimuli)\`
+              : 'random intercept per participant';
+          const missingNote = parseFloat(formData.missingRate || 0) > 0
+            ? \` An expected attrition rate of \${Math.round(parseFloat(formData.missingRate)*100)}% was incorporated; the LMM retains partial data under MAR assumption.\`
+            : '';
+          return \`Statistical power was estimated via Monte Carlo simulation (\${result.n_sim || 50} simulations) using a linear mixed model (MixedLM, statsmodels; Seabold & Perktold, 2010) with a likelihood ratio test (LRT) and random effects structure: \${rsLabel}. For a \${nGroups}-group × \${nLevels}-measurement design with f = \${f.toFixed(2)}, α = \${alphaTxt}, simulations indicate \${pw}% power with N = \${n} participants per group (total N = \${n * nGroups}).\${missingNote}\`;
         }
         case 'correlation': {
           return `An a priori power analysis using SimpleSize (simplesize.science) via Fisher's z transformation (Cohen, 1988) indicated that detecting a Pearson correlation of r = ${r.toFixed(2)} (${effectLabel(r,'r',false)} effect) with α = ${alphaTxt} and ${pct}% power requires N = ${n} participants.`;
